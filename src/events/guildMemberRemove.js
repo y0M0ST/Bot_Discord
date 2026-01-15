@@ -25,7 +25,7 @@ export default {
                 { name: "👤 Tên tài khoản", value: `\`${member.user.username}\``, inline: true },
                 { name: "🆔 User ID", value: `\`${member.id}\``, inline: true },
                 { name: "⏱️ Đã tham gia lúc", value: `<t:${joinedAt}:F>`, inline: false },
-                { name: "📊 Quân số hiện tại", value: `${member.guild.memberCount} thành viên`, inline: true }
+                { name: "📊 Số học sinh còn lại", value: `${member.guild.memberCount} thành viên`, inline: true }
             )
             .setFooter({ text: "Bot của em y0M0ST", iconURL: member.guild.iconURL() })
             .setTimestamp();
