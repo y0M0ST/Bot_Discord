@@ -9,7 +9,7 @@ export default {
         const itemKey = args[0]?.toLowerCase();
         const item = ITEMS[itemKey];
 
-        if (!item) return message.reply("❌ Không bán món này! Gõ `=shop` xem lại tên đi bà.");
+        if (!item) return message.reply("❌ Không bán món này! Gõ `=shop` xem lại tên đi em.");
         if (item.type !== 'tool') return message.reply("⚠️ Mấy cục đá lượm ngoài đường chứ mua làm gì? Chỉ mua được **Công cụ** thôi!");
 
         // Trừ tiền

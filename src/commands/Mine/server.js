@@ -9,7 +9,7 @@ export default {
     async execute(message, args) {
         // 1. Kiểm tra đầu vào
         if (!args[0]) {
-            return message.reply("⚠️ Nhập IP server đi bà! Ví dụ: `=server mc.hypixel.net`");
+            return message.reply("⚠️ Nhập IP server đi em! Ví dụ: `=server mc.hypixel.net`");
         }
 
         const ip = args[0];
@@ -51,7 +51,7 @@ export default {
             const errorEmbed = new EmbedBuilder()
                 .setColor("#FF0000")
                 .setTitle(`❌ Không kết nối được: ${ip}`)
-                .setDescription("Server đang **OFFLINE** hoặc bà nhập sai IP/Port rùi.")
+                .setDescription("Server đang **OFFLINE** hoặc em nhập sai IP/Port rùi.")
                 .setTimestamp();
 
             await msg.edit({ content: null, embeds: [errorEmbed] });

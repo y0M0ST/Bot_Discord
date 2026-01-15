@@ -12,7 +12,7 @@ export default {
 
         // 2. Kiểm tra cú pháp
         if (!args[0]) {
-            return message.reply("⚠️ Nhập lệnh cần gửi đi bà! Ví dụ: `=cmd time set day` hoặc `=cmd whitelist add TenNguoiChoi`");
+            return message.reply("⚠️ Nhập lệnh cần gửi đi em! Ví dụ: `=cmd time set day` hoặc `=cmd whitelist add TenNguoiChoi`");
         }
 
         const commandToSend = args.join(" ");

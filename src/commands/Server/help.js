@@ -81,7 +81,7 @@ export default {
             // Chỉ người gọi lệnh mới được bấm
             if (interaction.user.id !== message.author.id) {
                 return interaction.reply({
-                    content: "❌ Cái này hông phải của bà nha!",
+                    content: "❌ Cái này hông phải của em nha. Em muốn xài thì em gõ lệnh giống bạn nha!",
                     ephemeral: true // Chỉ hiện cho người bấm thấy
                 });
             }

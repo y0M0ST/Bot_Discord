@@ -32,7 +32,7 @@ export default {
             const errorEmbed = new EmbedBuilder()
                 .setColor("#FF0000")
                 .setTitle("⚠️ Thiếu tên Ingame!")
-                .setDescription("Bà muốn nạp cho ai? Nhớ ghi tên nhân vật vào nha.")
+                .setDescription("Em muốn nạp học phí hả? Nhớ ghi đúng tên nhân vật của em vào nha.")
                 .addFields({ name: "Ví dụ mẫu:", value: "`=qr 50000 Steve`" });
             return message.reply({ embeds: [errorEmbed] });
         }

@@ -27,7 +27,7 @@ export default {
                 { name: "⏱️ Đã tham gia lúc", value: `<t:${joinedAt}:F>`, inline: false },
                 { name: "📊 Quân số hiện tại", value: `${member.guild.memberCount} thành viên`, inline: true }
             )
-            .setFooter({ text: "Bot của bà Mindy", iconURL: member.guild.iconURL() })
+            .setFooter({ text: "Bot của em y0M0ST", iconURL: member.guild.iconURL() })
             .setTimestamp();
 
         try {

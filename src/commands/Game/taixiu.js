@@ -27,7 +27,7 @@ export default {
             return message.reply("⚠️ Tiền cược phải là số dương nha má!");
         }
         if (betAmount > userData.money) {
-            return message.reply(`💸 **Nghèo mà sang!** Bà có **${userData.money} xu** à, cược ít thôi!`);
+            return message.reply(`💸 **Nghèo mà sang!** Em có **${userData.money} xu** à, cược ít thôi!`);
         }
         if (!['tai', 'tài', 'xiu', 'xỉu'].includes(userChoice)) {
             return message.reply("❌ Chỉ được chọn **Tài** hoặc **Xỉu** thôi!");
@@ -67,7 +67,7 @@ export default {
                 .setDescription(`**${message.author.username}** chọn **${userChoice.toUpperCase()}** cược **${betAmount}**`)
                 .addFields(
                     { name: "Kết quả", value: `${diceDisplay} (Tổng: **${total}**)` },
-                    { name: "Chiến thắng!", value: `🎉 **${resultName.toUpperCase()}!** Bà ăn được **${betAmount} xu**! 🤑` }
+                    { name: "Chiến thắng!", value: `🎉 **${resultName.toUpperCase()}!** Em ăn được **${betAmount} xu**! rùi kìaaa. Áwww 🤑` }
                 );
         } else {
             // Thua: Trừ tiền (Truyền số âm vào hàm updateMoney)
@@ -76,7 +76,7 @@ export default {
                 .setDescription(`**${message.author.username}** chọn **${userChoice.toUpperCase()}** cược **${betAmount}**`)
                 .addFields(
                     { name: "Kết quả", value: `${diceDisplay} (Tổng: **${total}**)` },
-                    { name: "Thua rồi!", value: `💀 **${resultName.toUpperCase()}!** Mất trắng **${betAmount} xu**. Ra đê ở đi cưng! 😭` }
+                    { name: "Thua rồi!", value: `💀 **${resultName.toUpperCase()}!** Mất trắng **${betAmount} xu**. Ra đải ở đi cưng! 😭` }
                 );
         }
 

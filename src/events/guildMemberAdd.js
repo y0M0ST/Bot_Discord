@@ -28,7 +28,7 @@ export default {
                 { name: "📅 Ngày tạo nick", value: `<t:${createdAt}:F>\n(<t:${createdAt}:R>)`, inline: false }, // Dòng này giúp soi Clone cực mạnh
                 { name: "📊 Thành viên thứ", value: `#${member.guild.memberCount}`, inline: true }
             )
-            .setFooter({ text: "Bot của bà Mindy", iconURL: member.guild.iconURL() })
+            .setFooter({ text: "Bot của em y0M0ST", iconURL: member.guild.iconURL() })
             .setTimestamp();
 
         try {

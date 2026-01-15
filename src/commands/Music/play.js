@@ -4,7 +4,7 @@ export default {
     description: "Phát nhạc (DisTube)",
     category: "Music",
     async execute(message, args) {
-        if (!args[0]) return message.reply("⚠️ Nhập tên bài hát hoặc link đi bà!");
+        if (!args[0]) return message.reply("⚠️ Nhập tên bài hát hoặc link đi em!");
 
         const voiceChannel = message.member.voice.channel;
         if (!voiceChannel) return message.reply("⚠️ Vào voice trước đi!");

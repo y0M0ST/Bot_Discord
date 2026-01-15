@@ -27,7 +27,7 @@ export default {
         // - VÀ Người dùng KHÔNG PHẢI Admin
         if (allowedChannelId && message.channel.id !== allowedChannelId && !isAdmin) {
             // Gửi cảnh báo nhẹ
-            const warning = await message.reply(`🚫 **Sai chỗ rồi bà ơi!** Qua kênh <#${allowedChannelId}> mà chơi nha!`);
+            const warning = await message.reply(`🚫 **Sai chỗ rùiii em ơi!** Qua kênh <#${allowedChannelId}> mà chơi nhaaaa~~!`);
 
             // Xoá tin nhắn cảnh báo sau 5 giây cho đỡ rác
             setTimeout(() => {

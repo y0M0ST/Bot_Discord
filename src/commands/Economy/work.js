@@ -27,7 +27,7 @@ export default {
             const minutes = Math.floor(timeLeft / 60000); // Lấy phần nguyên của phút
             const seconds = Math.ceil((timeLeft % 60000) / 1000); // Lấy phần dư ra giây
 
-            return message.reply(`⏳ Bà mới đi làm về mà! Nghỉ ngơi xíu đi.\nQuay lại sau **${minutes} phút ${seconds} giây** nữa nha!`);
+            return message.reply(`⏳ Em làm đi học về mà! Nghỉ ngơi xíu đi.\nQuay lại học tiếp sau **${minutes} phút ${seconds} giây** nữa nha!`);
         }
 
         // 3. // Tầm 50 - 300 xu thôi, để ép người ta phải đi đào mới giàu được.

@@ -20,7 +20,7 @@ export default {
         if (timePassed < cooldownTime) {
             const timeLeft = cooldownTime - timePassed;
             const seconds = Math.ceil(timeLeft / 1000); // Đổi ra giây
-            return message.reply(`⏳ **Thở đi bà ơi!** Đào hăng quá sập hầm giờ.\nQuay lại sau **${seconds} giây** nữa nha!`);
+            return message.reply(`⏳ **Thở đi em !!!** Đào hăng quá sập hầm giờ.\nQuay lại sau **${seconds} giây** nữa nha!`);
         }
 
         // --- 2. CHECK CÚP VÀ LOGIC ĐÀO (Giữ nguyên như cũ) ---
@@ -39,7 +39,7 @@ export default {
         }
 
         if (!bestPickaxe) {
-            return message.reply("⛔ **Tay không bắt giặc?** Vào `=shop` mua cái **Cúp Gỗ** trước đi bà nội!");
+            return message.reply("⛔ **Tay không bắt giặc?** Vào `=shop` mua cái **Cúp Gỗ** trước đi em!");
         }
 
         // Xử lý số lượng

@@ -34,12 +34,12 @@ export default {
         if (!itemKey || !ITEMS[itemKey]) return message.reply("⚠️ Bán cái gì? Gõ `=sell <tên món>` hoặc `=sell all` nha.");
 
         const item = ITEMS[itemKey];
-        if (item.type === 'tool') return message.reply("⚠️ Đừng bán cần câu cơm (Cúp) bà ơi! Để mà dùng.");
+        if (item.type === 'tool') return message.reply("⚠️ Đừng bán cần câu cơm (Cúp) em ơi! Để mà dùng.");
 
         const amount = 1; // Tạm thời bán mỗi lần 1 cái cho dễ
         const hasItem = await removeItem(message.author.id, itemKey, amount);
 
-        if (!hasItem) return message.reply(`❌ Bà làm gì có **${item.name}** mà bán?`);
+        if (!hasItem) return message.reply(`❌ Em làm gì có **${item.name}** mà bán?`);
 
         await updateMoney(message.author.id, item.price);
         message.reply(`🤝 Đã bán **1 ${item.name}** với giá **${item.price} Xu**.`);
