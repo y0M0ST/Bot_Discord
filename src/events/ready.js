@@ -1,25 +1,42 @@
-// src/events/ready.js
-import { ActivityType, Events } from 'discord.js'; // 👈 Thêm Events vào import
+import { ActivityType, Events } from 'discord.js';
 
 export default {
-    name: Events.ClientReady, // 👈 Đổi 'ready' thành Events.ClientReady
+    name: Events.ClientReady,
     once: true,
     execute(client) {
-        console.log(`✅ Bot đã khởi động thành công: ${client.user.tag}`);
+        console.log(`✅ Bot đã khởi động: ${client.user.tag}`);
 
+        // Danh sách các trạng thái muốn hiển thị
+        const activities = [
+            { name: "Minecraft Server: blastmc.mcrft.top", type: ActivityType.Playing },
+            { name: "gõ =help để xem lệnh", type: ActivityType.Listening },
+            { name: "Minigame hấp dẫn", type: ActivityType.Watching },
+            { name: "Server dân cày", type: ActivityType.Competing },
+            { name: "Có làm thì mới có ăn", type: ActivityType.Competing },
+
+        ];
+
+        let i = 0;
+
+        // Hàm đổi status
         const updateStatus = () => {
-            const serverCount = client.guilds.cache.size;
+            // Lấy thông tin từ danh sách theo vòng tròn
+            const activity = activities[i++ % activities.length];
 
             client.user.setPresence({
                 activities: [{
-                    name: `${serverCount} Server | =help`,
-                    type: ActivityType.Watching
+                    name: activity.name,
+                    type: activity.type
                 }],
-                status: 'dnd', // 'online', 'idle', 'dnd', 'invisible'
+                status: 'online', // Trạng thái có thể là 'online', 'idle', 'dnd', hoặc 'invisible'
             });
         };
 
+        // Chạy ngay lập tức lần đầu
         updateStatus();
-        setInterval(updateStatus, 1 * 1000); // Cập nhật mỗi 1 phút
+
+        // Cài đặt đổi mỗi 10 giây (10 * 1000)
+        // Đừng để 1 giây nha, Discord nó chặn đó!
+        setInterval(updateStatus, 10 * 1000);
     },
 };

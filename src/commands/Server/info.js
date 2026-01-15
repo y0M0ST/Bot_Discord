@@ -1,52 +1,42 @@
-import { EmbedBuilder, version as djsVersion } from "discord.js";
+import { EmbedBuilder, version } from 'discord.js';
+import os from 'os'; // Thư viện lấy thông tin máy chủ
 
 export default {
-    name: "info",
-    description: "Hiển thị thông tin bot",
-    category: "Bot",
-    async execute(message) {
+    name: "info", // Hoặc "about", "info"
+    description: "Xem thông tin chi tiết về Bot",
+    category: "Info",
+    execute(message) {
         const client = message.client;
 
-        // Tên bot + ID
-        const botName = client.user.username;
-        const botId = client.user.id;
+        // Tính thời gian online (Uptime)
+        let totalSeconds = (client.uptime / 1000);
+        let days = Math.floor(totalSeconds / 86400);
+        totalSeconds %= 86400;
+        let hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = Math.floor(totalSeconds % 60);
+        const uptime = `${days} ngày, ${hours} giờ, ${minutes} phút`;
 
-        // Uptime
-        const uptimeMs = client.uptime;
-        const totalSeconds = Math.floor(uptimeMs / 1000);
-        const days = Math.floor(totalSeconds / 86400);
-        const hours = Math.floor((totalSeconds % 86400) / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        const uptimeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-
-        // Số server và user
-        const serverCount = client.guilds.cache.size;
-        const userCount = client.users.cache.size;
-
-        // Ngày tạo bot
-        const createdAt = client.user.createdAt.toLocaleDateString("vi-VN");
-
-        // Prefix (cố định là "=" trong code của bạn)
-        const prefix = "=";
-
+        // Tạo Embed
         const embed = new EmbedBuilder()
-            .setColor(0x00bfff)
-            .setTitle("🤖 Thông tin bot")
+            .setColor("#00FFFF") // Màu xanh neon
+            .setTitle(`🤖 THÔNG TIN BÉ BOT: ${client.user.username}`)
             .setThumbnail(client.user.displayAvatarURL())
+            .setDescription("Bot quản lý kinh tế, đào khoáng, tài xỉu siêu cấp vip pro! và nhiều minigame hấp dẫn khác đang chờ bạn khám phá...!!")
             .addFields(
-                { name: "Tên bot", value: botName, inline: true },
-                { name: "🆔 ID", value: botId, inline: true },
-                { name: "⏱️ Uptime", value: uptimeString, inline: true },
-                { name: "🌐 Server tham gia", value: `${serverCount}`, inline: true },
-                { name: "👥 Người dùng cache", value: `${userCount}`, inline: true },
-                { name: "📅 Ngày tạo bot", value: createdAt, inline: true },
-                { name: "⚙️ Discord.js", value: `v${djsVersion}`, inline: true },
-                { name: "🔑 Prefix", value: prefix, inline: true }
+                { name: "👑 Chủ sở hữu", value: "Cô giáo Mindy (Mindy#xxxx)", inline: true },
+                { name: "🏘️ Tổng Server", value: `${client.guilds.cache.size}`, inline: true },
+                { name: "👥 Tổng User", value: `${client.users.cache.size}`, inline: true },
+                { name: "⏳ Đã chạy được", value: uptime, inline: true },
+                { name: "📡 Ping", value: `${client.ws.ping}ms`, inline: true },
+                { name: "📚 Thư viện", value: `Discord.js v${version}`, inline: true },
+                { name: "🧠 RAM Usage", value: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`, inline: true },
+                { name: "💻 Platform", value: `${os.platform()} (${os.arch()})`, inline: true }
             )
-            .setFooter({ text: `Yêu cầu bởi ${message.author.tag}` })
+            .setFooter({ text: "Code bởi y0M0ST" })
             .setTimestamp();
 
-        return message.reply({ embeds: [embed] });
+        message.reply({ embeds: [embed] });
     },
 };
