@@ -76,7 +76,7 @@ export default {
                 .setDescription(`**${message.author.username}** chọn **${userChoice.toUpperCase()}** cược **${betAmount}**`)
                 .addFields(
                     { name: "Kết quả", value: `${diceDisplay} (Tổng: **${total}**)` },
-                    { name: "Thua rồi!", value: `💀 **${resultName.toUpperCase()}!** Mất trắng **${betAmount} xu**. Ra đải ở đi cưng! 😭` }
+                    { name: "Thua rồi!", value: `💀 **${resultName.toUpperCase()}!** Mất trắng **${betAmount} xu**. Ra đảo ở đi cưng! 😭` }
                 );
         }
 
