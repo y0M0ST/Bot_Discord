@@ -1,16 +1,10 @@
-// src/index.js
 import 'dotenv/config';
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, Collection } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import logger from './utils/logger.js';
 import { keepAlive } from './keep_alive.js';
-
-// 👇 IMPORT DISTUBE & PLUGINS
-import { DisTube } from 'distube';
-import { YtDlpPlugin } from '@distube/yt-dlp';
-import { SoundCloudPlugin } from '@distube/soundcloud';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,47 +15,14 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildVoiceStates,
+        // Đã xoá GuildVoiceStates vì không cần vào Voice nữa
     ],
 });
 
-// 👇 CẤU HÌNH DISTUBE (ĐÃ FIX LỖI INVALID_KEY)
-client.distube = new DisTube(client, {
-    plugins: [
-        // Nạp Client ID từ file .env vào đây
-        new SoundCloudPlugin(), // 👈 Để trống vầy thôi, cho nó tự xử!
-        
-        new YtDlpPlugin()
-    ],
-    // ...
-});
-
-// --- LẮNG NGHE SỰ KIỆN NHẠC ---
-client.distube
-    .on("playSong", (queue, song) => {
-        queue.textChannel.send(`🎶 Đang phát: **${song.name}** - \`[${song.formattedDuration}]\``);
-    })
-    .on("addSong", (queue, song) => {
-        queue.textChannel.send(`✅ Đã thêm: **${song.name}** - \`[${song.formattedDuration}]\``);
-    })
-    .on("addList", (queue, playlist) => {
-        queue.textChannel.send(`✅ Đã thêm playlist: **${playlist.name}** (${playlist.songs.length} bài)`);
-    })
-    .on("error", (channel, e) => {
-        console.error("❌ DISTUBE ERROR LOG:", e); // In lỗi ra terminal để mình soi
-
-        // Lấy nội dung lỗi một cách an toàn nhất
-        const errMessage = e.message || e || "Lỗi không xác định";
-
-        if (channel) {
-            channel.send(`❌ Có lỗi: ${String(errMessage).slice(0, 2000)}`);
-        }
-    });
-
 // =======================
-// Nạp commands (Code cũ)
+// NẠP COMMANDS (LOG CHI TIẾT)
 // =======================
-client.commands = new Map();
+client.commands = new Collection();
 
 function getAllCommandFiles(dir, fileList = []) {
     const files = fs.readdirSync(dir);
@@ -79,43 +40,67 @@ function getAllCommandFiles(dir, fileList = []) {
 
 async function main() {
     const commandsPath = path.join(__dirname, "commands");
+
+    // Kiểm tra thư mục
+    if (!fs.existsSync(commandsPath)) {
+        console.error(`❌ [ERROR] Không tìm thấy thư mục commands tại: ${commandsPath}`);
+        return;
+    }
+
     const commandFiles = getAllCommandFiles(commandsPath);
-    console.log(`🔎 Tìm thấy ${commandFiles.length} file lệnh.`);
+
+    console.log("-------------------------------------------------");
+    console.log(`📦 Đang quét lệnh trong thư mục: ${commandsPath}`);
+    console.log(`🔎 Tìm thấy tổng cộng ${commandFiles.length} file... bắt đầu nạp!`);
+    console.log("-------------------------------------------------");
 
     for (const { filePath, fileName } of commandFiles) {
         try {
             const commandModule = await import(pathToFileURL(filePath).href);
-            if (!commandModule.default) continue;
-
             const commands = Array.isArray(commandModule.default) ? commandModule.default : [commandModule.default];
+
             for (const cmd of commands) {
-                if (!cmd?.name || !cmd?.execute) continue;
-                client.commands.set(cmd.name, cmd);
+                if (cmd?.name && cmd?.execute) {
+                    client.commands.set(cmd.name, cmd);
+                    console.log(`✅ [LOADED] ${fileName.padEnd(20)} -> Lệnh: [${cmd.name}]`);
+                } else {
+                    console.log(`⚠️ [SKIP]   ${fileName.padEnd(20)} -> Thiếu 'name' hoặc 'execute'.`);
+                }
             }
         } catch (err) {
-            logger.error(`❌ Lỗi nạp file ${fileName}:`, err);
+            console.error(`❌ [ERROR] Lỗi khi nạp file ${fileName}:`, err.message);
         }
     }
 
-    // Nạp Events
+    console.log("-------------------------------------------------");
+    console.log(`🎉 Tổng cộng: Đã nạp thành công ${client.commands.size} lệnh.`);
+    console.log("-------------------------------------------------");
+
+    // --- NẠP EVENTS ---
     const eventsPath = path.join(__dirname, 'events');
-    const eventFiles = fs.readdirSync(eventsPath);
-    for (const file of eventFiles) {
-        const filePath = path.join(eventsPath, file);
-        try {
-            const eventModule = await import(pathToFileURL(filePath).href);
-            const event = eventModule.default;
-            if (event?.name && event?.execute) {
-                if (event.once) client.once(event.name, (...args) => event.execute(...args));
-                else client.on(event.name, (...args) => event.execute(...args));
+    if (fs.existsSync(eventsPath)) {
+        const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+        for (const file of eventFiles) {
+            const filePath = path.join(eventsPath, file);
+            try {
+                const eventModule = await import(pathToFileURL(filePath).href);
+                const event = eventModule.default;
+                if (event?.name && event?.execute) {
+                    if (event.once) client.once(event.name, (...args) => event.execute(...args));
+                    else client.on(event.name, (...args) => event.execute(...args));
+                }
+            } catch (err) {
+                console.error(`❌ Lỗi nạp Event ${file}:`, err);
             }
-        } catch (err) { logger.error(err); }
+        }
     }
 
     try {
-        keepAlive(); // 👈 Kích hoạt server giữ cho bot luôn online
+        keepAlive(); // Server Banking & Ping
         await client.login(process.env.DISCORD_TOKEN);
-    } catch (err) { logger.error(err); }
+    } catch (err) {
+        console.error("❌ Lỗi đăng nhập:", err);
+    }
 }
 
 main();

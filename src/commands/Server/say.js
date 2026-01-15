@@ -1,3 +1,4 @@
+//src/commands/Server/say.js
 import { EmbedBuilder } from 'discord.js';
 
 export default {
