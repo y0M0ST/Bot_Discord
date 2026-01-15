@@ -8,11 +8,12 @@ export default {
 
         // Danh sách các trạng thái muốn hiển thị
         const activities = [
-            { name: "Minecraft Server: blastmc.mcrft.top", type: ActivityType.Playing },
-            { name: "gõ =help để xem lệnh", type: ActivityType.Listening },
-            { name: "Minigame hấp dẫn", type: ActivityType.Watching },
-            { name: "Server dân cày", type: ActivityType.Competing },
-            { name: "Có làm thì mới có ăn", type: ActivityType.Competing },
+            // { name: "Minecraft Server: blastmc.mcrft.top", type: ActivityType.Playing },
+            // { name: "gõ =help để xem lệnh", type: ActivityType.Listening },
+            { name: "🎶 Anh đi mòn đôi tất, mất đôi mươi", type: ActivityType.Listening },
+            // { name: "Minigame hấp dẫn", type: ActivityType.Watching },
+            // { name: "Server dân cày", type: ActivityType.Competing },
+            // { name: "Có làm thì mới có ăn", type: ActivityType.Competing },
 
         ];
 
@@ -34,9 +35,6 @@ export default {
 
         // Chạy ngay lập tức lần đầu
         updateStatus();
-
-        // Cài đặt đổi mỗi 10 giây (10 * 1000)
-        // Đừng để 1 giây nha, Discord nó chặn đó!
         setInterval(updateStatus, 10 * 1000);
     },
 };
