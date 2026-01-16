@@ -60,7 +60,7 @@ app.post('/webhook-bank', async (req, res) => {
                             setTimeout(() => {
                                 // Chỉ gửi tin nhắn riêng cho người chơi đó
                                 channel.send(`msg ${realIgn} §a[Banking] §eCảm ơn bạn đã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point! §7(Mã: ${transactionCode})`);
-                            }, 1000);
+                            }, 5000);
 
                             console.log(`[SUCCESS] ✅ Đã nạp ${points} Point cho ${realIgn} (Mã: ${transactionCode})`);
 
