@@ -1,101 +1,133 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import mineflayer from 'mineflayer'; // 👈 Thư viện tạo Bot giả người
+import { Rcon } from 'rcon-client'; // Thư viện RCON
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
 const app = express();
 app.use(bodyParser.json());
 
+// Kết nối Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// --- 🤖 CẤU HÌNH BOT MINECRAFT ---
-const botOptions = {
-    host: 'blastmc.mcrft.top', // IP Server
-    port: 25565,               // Port Game (Thường là 25565)
-    username: 'CoGiaoMinDy',    // Tên con Bot trong game
-    version: false,            // Tự động dò version
-    // password: '...'         // Nếu server bản quyền thì cần điền, server crack/offline thì bỏ dòng này
+// --- ⚙️ CẤU HÌNH RCON ---
+const RCON_CONFIG = {
+    host: "blastmc.mcrft.top",  // IP Server
+    port: 24094,                // Port RCON
+    password: "0147"            // Mật khẩu RCON
 };
 
-let bot; // Biến giữ con bot
-
-function createBot() {
-    bot = mineflayer.createBot(botOptions);
-
-    // 1. Khi Bot vào game -> Tự Login AuthMe
-    bot.on('spawn', () => {
-        console.log('[MINECRAFT] 🟢 Bot đã vào server!');
-        // Thay 'matkhau123' bằng mật khẩu bà muốn đặt cho con bot này
-        bot.chat('/register botMindy178934 botMindy178934');
-        bot.chat('/login botMindy178934');
-    });
-
-    // 2. Tự động kết nối lại nếu bị kick hoặc lag
-    bot.on('end', () => {
-        console.log('[MINECRAFT] 🔴 Bot bị ngắt kết nối! Đang reconnect sau 10s...');
-        setTimeout(createBot, 10000);
-    });
-
-    bot.on('error', (err) => console.log(`[MINECRAFT] ❌ Lỗi: ${err.message}`));
+// Hàm xoá dấu Tiếng Việt (Để gửi RCON không lỗi font)
+function removeVietnameseTones(str) {
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    return str;
 }
 
-// Khởi động con bot ngay khi chạy server
-createBot();
+// Hàm gửi lệnh RCON
+async function sendRconCommand(command) {
+    try {
+        const rcon = await Rcon.connect(RCON_CONFIG);
+        await rcon.send(command);
+        await rcon.end();
+        return true;
+    } catch (error) {
+        console.error(`[RCON ERROR] ❌ Không kết nối được Server: ${error.message}`);
+        return false;
+    }
+}
 
-// ---------------------------------------------------------
-
+// --- WEBHOOK NHẬN TIỀN ---
 app.post('/webhook-bank', async (req, res) => {
     try {
         const data = req.body;
+        // console.log(`[WEBHOOK] 📩 Data:`, JSON.stringify(data)); // Bật lên nếu muốn soi log
+
         const amount = data.transferAmount || data.amount;
         const content = data.content || data.description || "";
 
         if (!amount || !content) return res.status(400).send("Missing Data");
 
+        // 1. TÌM MÃ GIAO DỊCH (MD + 6 số)
         const match = content.match(/(MD\d{6})/i);
 
         if (match) {
             const transactionCode = match[1].toUpperCase();
 
+            // 🔥 BƯỚC QUAN TRỌNG: XOÁ LUÔN ĐỂ "CHIẾM" GIAO DỊCH
+            // (Ngăn chặn việc nạp đôi nếu Webhook gửi 2 lần)
             const { data: transaction } = await supabase
                 .from('pending_transactions')
-                .select('*')
+                .delete()
                 .eq('code', transactionCode)
+                .select()
                 .single();
 
             if (transaction) {
+                // Nếu xoá thành công -> Tức là chưa ai xử lý -> Tiến hành nạp
                 const realIgn = transaction.ign;
                 const points = Math.floor(amount / 1000);
 
                 if (amount >= transaction.amount) {
-                    if (bot && bot.player) { // Kiểm tra bot có đang online không
-                        console.log(`[LOGIC] 🔄 Bot đang gõ lệnh nạp cho ${realIgn}...`);
+                    console.log(`[LOGIC] 🔄 Đang nạp ${points} Point cho ${realIgn}...`);
 
-                        // --- BOT CHAT LỆNH TRONG GAME ---
-                        // Lưu ý: Bot cần được SET OP trong game mới gõ được lệnh /p give nha!
-                        bot.chat(`/p give ${realIgn} ${points}`);
-                        bot.chat(`/msg ${realIgn} [Banking] Da nap thanh cong ${points} Points!, cam on ban da su dung dich vu!`);
+                    // 2. GỬI LỆNH CỘNG TIỀN
+                    const cmdPoints = `points give ${realIgn} ${points}`;
+                    const success = await sendRconCommand(cmdPoints);
 
-                        console.log(`[SUCCESS] ✅ Đã nạp xong!`);
+                    if (success) {
+                        // ✅ THÀNH CÔNG: Gửi tin nhắn cảm ơn (msg/tell)
+                        // Dùng &a, &b để tô màu cho đẹp
+                        const msgContent = `&a[BlastMC BANK] &eBan da nhan duoc &6${points} Coin &etu ma GD &b${transactionCode}. Cam on ban!`;
 
-                        // Xoá mã
-                        await supabase.from('pending_transactions').delete().eq('code', transactionCode);
+                        // 👇 Dùng lệnh msg theo yêu cầu của bà
+                        await sendRconCommand(`msg ${realIgn} ${removeVietnameseTones(msgContent)}`);
+
+                        console.log(`[SUCCESS] ✅ Đã nạp xong cho ${realIgn}`);
+                        return res.status(200).json({ success: true });
                     } else {
-                        console.error(`[ERROR] ❌ Bot Minecraft đang Offline, không nạp được!`);
+                        // ❌ RCON LỖI (Server tắt): PHẢI HOÀN TÁC DATABASE
+                        // Nhét lại dữ liệu vào DB để lần sau SePay gửi lại thì nạp tiếp
+                        console.warn(`[WARNING] ⚠️ RCON lỗi! Đang hoàn tác dữ liệu...`);
+
+                        await supabase.from('pending_transactions').insert({
+                            code: transaction.code,
+                            ign: transaction.ign,
+                            amount: transaction.amount
+                        });
+
+                        return res.status(500).send("Minecraft Server Offline - Retry later");
                     }
+                } else {
+                    console.warn(`[WARNING] Nạp thiếu tiền (Khách: ${amount}, Lệnh: ${transaction.amount})`);
                 }
+            } else {
+                console.log(`[INFO] Mã ${transactionCode} không tồn tại hoặc đã xử lý.`);
             }
         }
+
         res.status(200).json({ success: true });
+
     } catch (error) {
-        console.error("[ERROR]", error);
-        res.status(500).send("Error");
+        console.error("[CRITICAL ERROR]", error);
+        res.status(500).send("Server Error");
     }
 });
 
-app.get('/', (req, res) => res.send('Bot Mineflayer Online!'));
+app.get('/', (req, res) => res.send('Bot Banking RCON Online! 🤖'));
 
 export function keepAlive() {
-    app.listen(3000, () => console.log("🚀 Server chạy port 3000!"));
+    app.listen(3000, () => console.log("🚀 Server Banking đang chạy port 3000!"));
 }
