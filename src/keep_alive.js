@@ -49,7 +49,7 @@ app.post('/webhook-bank', async (req, res) => {
                             channel.send(`say §aCảm ơn §e${ign} §ađã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point!`);
                         }, 1000);
 
-                        console.log(`[SUCCESS] ✅ Đã gửi lệnh vào kênh Console Discord: points give ${ign} ${points}`);
+                        console.log(`[SUCCESS] ✅ Đã gửi lệnh vào kênh Console Discord: p give ${ign} ${points}`);
                     } else {
                         console.error(`[ERROR] ❌ Không tìm thấy kênh Console! Kiểm tra lại ID trong .env: ${consoleChannelId}`);
                     }
