@@ -1,5 +1,7 @@
 import { Events, PermissionsBitField } from 'discord.js';
 import 'dotenv/config';
+import { askMindy } from '../utils/geminiHelper.js';
+import { safeReply } from '../utils/discordHelper.js';
 
 export default {
     name: Events.MessageCreate,
@@ -7,63 +9,88 @@ export default {
         // 1. Bỏ qua tin nhắn của bot khác
         if (message.author.bot) return;
 
-        // --- 📢 LOG INPUT: In ra Terminal để biết ai đang nhắn gì ---
+        // ======================================================
+        // 🛡️ PHẦN 1: XỬ LÝ LỆNH (Bắt đầu bằng dấu "=")
+        // 👉 CHO PHÉP DÙNG Ở MỌI NƠI (Không chặn kênh nữa)
+        // ======================================================
         if (message.content.startsWith('=')) {
-            console.log("-------------------------------------------------");
-            console.log(`📩 [INPUT] ${message.author.tag} (Channel: #${message.channel.name})`);
-            console.log(`   👉 Nội dung: "${message.content}"`);
+
+            // Log nhẹ cái input để bà theo dõi
+            console.log(`📩 [CMD] ${message.author.tag}: ${message.content}`);
+
+            // Tách lệnh
+            const args = message.content.slice(1).trim().split(/ +/);
+            const commandName = args.shift().toLowerCase();
+
+            // Chặn lệnh rác (=)), =.=)
+            if (!/^[a-zA-Z0-9]+$/.test(commandName)) return;
+
+            // Tìm lệnh (Có hỗ trợ Alias)
+            const client = message.client;
+            const command = client.commands.get(commandName) ||
+                [...client.commands.values()].find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
+
+            if (!command) return; // Không có lệnh thì thôi, im lặng
+
+            // --- ⚠️ TUI ĐÃ XOÁ ĐOẠN CHECK CHANNEL Ở ĐÂY ---
+            // Giờ member đứng ở đâu gõ lệnh cũng được hết!
+
+            // Chạy lệnh
+            try {
+                await command.execute(message, args);
+                console.log(`✅ [SUCCESS] Lệnh [${command.name}] OK.`);
+            } catch (error) {
+                console.error(`❌ [ERROR] Lỗi lệnh [${command.name}]:`, error);
+                safeReply(message, '❌ Có lỗi xảy ra khi thực hiện lệnh này!');
+            }
+            return; // Xong lệnh thì thoát
         }
-        // ------------------------------------------------------------
 
-        // 2. Bỏ qua nếu không bắt đầu bằng dấu "="
-        if (!message.content.startsWith('=')) return;
+        // ======================================================
+        // 🧠 PHẦN 2: AI MINDY (Tag @Mindy là trả lời)
+        // 👉 CHỈ CHO PHÉP DÙNG Ở KÊNH QUY ĐỊNH (ALLOWED_CHANNEL_ID)
+        // ======================================================
+        if (message.mentions.has(message.client.user)) {
 
-        // 3. Tách lệnh và tham số
-        const args = message.content.slice(1).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
+            // --- 🚧 LOGIC CHẶN KÊNH CHỈ ÁP DỤNG CHO AI 🚧 ---
+            const allowedChannelId = process.env.ALLOWED_CHANNEL_ID;
+            const isAdmin = message.member?.permissions.has(PermissionsBitField.Flags.Administrator);
 
-        console.log(`🔎 [DEBUG] Đang tìm lệnh tên là: "${commandName}"`); // 👈 THÊM DÒNG NÀY
+            // Nếu có cài kênh quy định VÀ sai kênh VÀ không phải Admin
+            if (allowedChannelId && message.channel.id !== allowedChannelId && !isAdmin) {
+                const warning = await safeReply(message,
+                    `🚫 **Sai khu vực rồi!** Qua kênh <#${allowedChannelId}> tâm sự với cô nhen! 😘`
+                );
+                // Xoá cảnh báo sau 5s
+                if (warning) setTimeout(() => warning.delete().catch(() => { }), 5000);
 
-        // 4. Tìm lệnh trong bộ nhớ (Code đã fix nãy)
-        const client = message.client;
-        const command = client.commands.get(commandName) ||
-            [...client.commands.values()].find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
+                return; // Chặn không cho AI trả lời
+            }
 
-        if (!command) {
-            console.log(`⚠️ [WARNING] Không tìm thấy lệnh nào tên là "${commandName}" trong kho lệnh!`); // 👈 THÊM DÒNG NÀY
-            return;
-        }
+            // --- NẾU ĐÚNG KÊNH THÌ TRẢ LỜI ---
+            await message.channel.sendTyping();
+            const question = message.content.replace(`<@${message.client.user.id}>`, '').trim();
 
-        // --- 🚧 KHU VỰC CẤM ĐỊA (LOGIC CHẶN KÊNH CỦA BÀ) 🚧 ---
-        const allowedChannelId = process.env.ALLOWED_CHANNEL_ID;
+            if (!question) {
+                return safeReply(message, "Hửm? Gọi cô có việc gì dợ? Hỏi gì đi nè! 😘");
+            }
 
-        // Kiểm tra Admin (Thêm dấu ? để tránh lỗi nếu check trong tin nhắn riêng)
-        const isAdmin = message.member?.permissions.has(PermissionsBitField.Flags.Administrator);
+            try {
+                const answer = await askMindy(question);
 
-        if (allowedChannelId && message.channel.id !== allowedChannelId && !isAdmin) {
-            // Gửi cảnh báo nhẹ
-            const warning = await message.reply(`🚫 **Sai chỗ rùiii em ơi!** Qua kênh <#${allowedChannelId}> mà chơi nhaaaa~~!`);
+                if (answer.length > 2000) {
+                    return safeReply(message, {
+                        content: "Ui dài quá, cô gửi file nhen!",
+                        files: [{ attachment: Buffer.from(answer), name: 'mindy-tra-loi.txt' }]
+                    });
+                }
 
-            // Xoá tin nhắn cảnh báo sau 5 giây cho đỡ rác
-            setTimeout(() => {
-                warning.delete().catch(() => { });
-                message.delete().catch(() => { }); // Xoá luôn lệnh sai
-            }, 5000);
+                await safeReply(message, answer);
 
-            console.log(`🚫 [BLOCK] Đã chặn ${message.author.tag} dùng lệnh [${commandName}] sai kênh.`);
-            return; // DỪNG LẠI NGAY
-        }
-        // ---------------------------------------------
-
-        // 5. Chạy lệnh & Log kết quả
-        console.log(`⚙️ [EXECUTE] Đang chạy lệnh: [${command.name}]...`);
-
-        try {
-            await command.execute(message, args);
-            console.log(`✅ [SUCCESS] Lệnh [${command.name}] đã chạy xong!`);
-        } catch (error) {
-            console.error(`❌ [ERROR] Lỗi khi chạy lệnh [${command.name}]:`, error);
-            message.reply('❌ Có lỗi xảy ra khi thực hiện lệnh này!');
+            } catch (err) {
+                console.error("Lỗi AI:", err);
+                safeReply(message, "Cô đang bị lag não xíu, hỏi lại sau nha! 🤕");
+            }
         }
     },
 };
