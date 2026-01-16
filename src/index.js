@@ -97,7 +97,8 @@ async function main() {
 
     try {
         await client.login(process.env.DISCORD_TOKEN);
-        keepAlive(); // Server Banking & Ping
+        keepAlive(client); // Server Banking & Ping
+        console.log("✅ Đã kích hoạt Webhook Banking thành công!");
     } catch (err) {
         console.error("❌ Lỗi đăng nhập:", err);
     }
