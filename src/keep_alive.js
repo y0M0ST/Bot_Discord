@@ -1,100 +1,101 @@
 import express from 'express';
 import bodyParser from 'body-parser';
+import mineflayer from 'mineflayer'; // 👈 Thư viện tạo Bot giả người
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
 const app = express();
 app.use(bodyParser.json());
 
-// Kết nối Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Biến lưu client Discord
-let discordClient = null;
+// --- 🤖 CẤU HÌNH BOT MINECRAFT ---
+const botOptions = {
+    host: 'blastmc.mcrft.top', // IP Server
+    port: 25565,               // Port Game (Thường là 25565)
+    username: 'CoGiaoMinDy',    // Tên con Bot trong game
+    version: false,            // Tự động dò version
+    // password: '...'         // Nếu server bản quyền thì cần điền, server crack/offline thì bỏ dòng này
+};
 
-// --- WEBHOOK NHẬN TIỀN ---
+let bot; // Biến giữ con bot
+
+function createBot() {
+    bot = mineflayer.createBot(botOptions);
+
+    // 1. Khi Bot vào game -> Tự Login AuthMe
+    bot.on('spawn', () => {
+        console.log('[MINECRAFT] 🟢 Bot đã vào server!');
+        // Thay 'matkhau123' bằng mật khẩu bà muốn đặt cho con bot này
+        bot.chat('/register botMindy178934 botMindy178934');
+        bot.chat('/login botMindy178934');
+    });
+
+    // 2. Tự động kết nối lại nếu bị kick hoặc lag
+    bot.on('end', () => {
+        console.log('[MINECRAFT] 🔴 Bot bị ngắt kết nối! Đang reconnect sau 10s...');
+        setTimeout(createBot, 10000);
+    });
+
+    bot.on('error', (err) => console.log(`[MINECRAFT] ❌ Lỗi: ${err.message}`));
+}
+
+// Khởi động con bot ngay khi chạy server
+createBot();
+
+// ---------------------------------------------------------
+
 app.post('/webhook-bank', async (req, res) => {
     try {
         const data = req.body;
-        console.log("-------------------------------------------------");
-        console.log(`[WEBHOOK] 📩 Nhận dữ liệu:`, JSON.stringify(data));
-
         const amount = data.transferAmount || data.amount;
         const content = data.content || data.description || "";
 
         if (!amount || !content) return res.status(400).send("Missing Data");
 
-        // 1. TÌM MÃ GIAO DỊCH (MD + 6 số)
         const match = content.match(/(MD\d{6})/i);
 
         if (match) {
-            const transactionCode = match[1].toUpperCase(); // Lấy mã: MD123456
+            const transactionCode = match[1].toUpperCase();
 
-            // 2. TRA CỨU DATABASE
-            const { data: transaction, error } = await supabase
+            const { data: transaction } = await supabase
                 .from('pending_transactions')
                 .select('*')
                 .eq('code', transactionCode)
                 .single();
 
             if (transaction) {
-                // ✅ TÌM THẤY ĐƠN NẠP HỢP LỆ
-                const realIgn = transaction.ign; // Tên thật
-                const expectedAmount = transaction.amount;
+                const realIgn = transaction.ign;
+                const points = Math.floor(amount / 1000);
 
-                // Kiểm tra số tiền
-                if (amount >= expectedAmount) {
-                    const points = Math.floor(amount / 1000); // 1000đ = 1 Point
+                if (amount >= transaction.amount) {
+                    if (bot && bot.player) { // Kiểm tra bot có đang online không
+                        console.log(`[LOGIC] 🔄 Bot đang gõ lệnh nạp cho ${realIgn}...`);
 
-                    if (discordClient) {
-                        const consoleChannelId = process.env.CONSOLE_CHANNEL_ID;
-                        const channel = discordClient.channels.cache.get(consoleChannelId);
+                        // --- BOT CHAT LỆNH TRONG GAME ---
+                        // Lưu ý: Bot cần được SET OP trong game mới gõ được lệnh /p give nha!
+                        bot.chat(`/p give ${realIgn} ${points}`);
+                        bot.chat(`/msg ${realIgn} [Banking] Da nap thanh cong ${points} Points!, cam on ban da su dung dich vu!`);
 
-                        if (channel) {
-                            // --- THỰC HIỆN LỆNH NẠP ---
+                        console.log(`[SUCCESS] ✅ Đã nạp xong!`);
 
-                            // 1. Lệnh cộng Point (Sửa thành 'p give')
-                            await channel.send(`p give ${realIgn} ${points}`);                           
-
-                            console.log(`[SUCCESS] ✅ Đã nạp ${points} Point cho ${realIgn} (Mã: ${transactionCode})`);
-
-                            // 2. Lệnh cảm ơn thầm kín (Sửa thành 'msg')
-                            // setTimeout(() => {
-                            //     // Chỉ gửi tin nhắn riêng cho người chơi đó
-                            //     channel.send(`msg ${realIgn} §a[Banking] §eCảm ơn bạn đã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point! §7(Mã: ${transactionCode})`);
-                            // }, 5000);
-
-                            // 3. XOÁ MÃ KHỎI DB
-                            await supabase.from('pending_transactions').delete().eq('code', transactionCode);
-                        } else {
-                            console.error(`[ERROR] ❌ Không tìm thấy kênh Console ID: ${consoleChannelId}`);
-                        }
+                        // Xoá mã
+                        await supabase.from('pending_transactions').delete().eq('code', transactionCode);
                     } else {
-                        console.error(`[ERROR] ❌ Bot chưa sẵn sàng (discordClient is null)`);
+                        console.error(`[ERROR] ❌ Bot Minecraft đang Offline, không nạp được!`);
                     }
-                } else {
-                    console.warn(`[WARNING] ⚠️ Nạp thiếu tiền! Khách nạp ${amount}, Lệnh gốc ${expectedAmount}`);
                 }
-            } else {
-                console.warn(`[INFO] ⚠️ Mã giao dịch ${transactionCode} không tồn tại hoặc đã hết hạn.`);
             }
         }
-
         res.status(200).json({ success: true });
-
     } catch (error) {
-        console.error("[ERROR] 💥 Webhook Crash:", error);
-        res.status(500).send("Server Error");
+        console.error("[ERROR]", error);
+        res.status(500).send("Error");
     }
 });
 
-app.get('/', (req, res) => {
-    res.send('Bot Auto-Donate is Online! 🤖');
-});
+app.get('/', (req, res) => res.send('Bot Mineflayer Online!'));
 
-export function keepAlive(client) {
-    discordClient = client;
-    app.listen(3000, () => {
-        console.log("🚀 Server Banking đang chạy ở port 3000!");
-    });
+export function keepAlive() {
+    app.listen(3000, () => console.log("🚀 Server chạy port 3000!"));
 }
