@@ -24,13 +24,13 @@ app.post('/webhook-bank', async (req, res) => {
 
         if (!amount || !content) return res.status(400).send("Missing Data");
 
-        // 1. TÌM MÃ GIAO DỊCH (MD + 6 số) TRONG NỘI DUNG
+        // 1. TÌM MÃ GIAO DỊCH (MD + 6 số)
         const match = content.match(/(MD\d{6})/i);
 
         if (match) {
             const transactionCode = match[1].toUpperCase(); // Lấy mã: MD123456
 
-            // 2. TRA CỨU DATABASE (Lấy thông tin người nạp)
+            // 2. TRA CỨU DATABASE
             const { data: transaction, error } = await supabase
                 .from('pending_transactions')
                 .select('*')
@@ -39,7 +39,7 @@ app.post('/webhook-bank', async (req, res) => {
 
             if (transaction) {
                 // ✅ TÌM THẤY ĐƠN NẠP HỢP LỆ
-                const realIgn = transaction.ign; // Tên thật (có thể có ký tự lạ)
+                const realIgn = transaction.ign; // Tên thật
                 const expectedAmount = transaction.amount;
 
                 // Kiểm tra số tiền
@@ -52,17 +52,19 @@ app.post('/webhook-bank', async (req, res) => {
 
                         if (channel) {
                             // --- THỰC HIỆN LỆNH NẠP ---
-                            // Dùng tên thật lấy từ DB nên an toàn 100%
-                            await channel.send(`points give ${realIgn} ${points}`);
 
-                            // Thông báo trong game sau 1 giây
+                            // 1. Lệnh cộng Point (Sửa thành 'p give')
+                            await channel.send(`p give ${realIgn} ${points}`);
+
+                            // 2. Lệnh cảm ơn thầm kín (Sửa thành 'msg')
                             setTimeout(() => {
-                                channel.send(`say §aĐã nạp thành công cho §e${realIgn} §b(Mã GD: ${transactionCode})`);
+                                // Chỉ gửi tin nhắn riêng cho người chơi đó
+                                channel.send(`msg ${realIgn} §a[Banking] §eCảm ơn bạn đã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point! §7(Mã: ${transactionCode})`);
                             }, 1000);
 
                             console.log(`[SUCCESS] ✅ Đã nạp ${points} Point cho ${realIgn} (Mã: ${transactionCode})`);
 
-                            // 3. XOÁ MÃ KHỎI DB (Để không dùng lại được)
+                            // 3. XOÁ MÃ KHỎI DB
                             await supabase.from('pending_transactions').delete().eq('code', transactionCode);
                         } else {
                             console.error(`[ERROR] ❌ Không tìm thấy kênh Console ID: ${consoleChannelId}`);
@@ -76,8 +78,6 @@ app.post('/webhook-bank', async (req, res) => {
             } else {
                 console.warn(`[INFO] ⚠️ Mã giao dịch ${transactionCode} không tồn tại hoặc đã hết hạn.`);
             }
-        } else {
-            console.log(`[INFO] Nội dung không chứa mã MD hợp lệ: ${content}`);
         }
 
         res.status(200).json({ success: true });
@@ -89,7 +89,7 @@ app.post('/webhook-bank', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('Bot Auto-Donate (Transaction ID Mode) is Online! 🤖');
+    res.send('Bot Auto-Donate is Online! 🤖');
 });
 
 export function keepAlive(client) {
