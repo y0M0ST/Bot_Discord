@@ -96,8 +96,8 @@ async function main() {
     }
 
     try {
-        keepAlive(); // Server Banking & Ping
         await client.login(process.env.DISCORD_TOKEN);
+        keepAlive(); // Server Banking & Ping
     } catch (err) {
         console.error("❌ Lỗi đăng nhập:", err);
     }
