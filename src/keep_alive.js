@@ -1,85 +1,99 @@
 import express from 'express';
 import bodyParser from 'body-parser';
+import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
 const app = express();
 app.use(bodyParser.json());
 
-// Biến lưu client Discord để dùng trong Webhook
+// Kết nối Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Biến lưu client Discord
 let discordClient = null;
 
-// --- WEBHOOK NHẬN TIỀN TỪ SEPAY ---
+// --- WEBHOOK NHẬN TIỀN ---
 app.post('/webhook-bank', async (req, res) => {
     try {
         const data = req.body;
         console.log("-------------------------------------------------");
-        console.log(`[WEBHOOK] 📩 Nhận dữ liệu mới:`, JSON.stringify(data, null, 2));
+        console.log(`[WEBHOOK] 📩 Nhận dữ liệu:`, JSON.stringify(data));
 
         const amount = data.transferAmount || data.amount;
         const content = data.content || data.description || "";
 
-        if (!amount || !content) {
-            return res.status(400).send("Thiếu dữ liệu Amount hoặc Content");
-        }
+        if (!amount || !content) return res.status(400).send("Missing Data");
 
-        // --- XỬ LÝ LOGIC ---
-        // Regex tìm tên sau chữ NAP (Ví dụ: NAP MINDY -> lấy MINDY)
-        const match = content.match(/NAP\s+([a-zA-Z0-9_]+)/i);
+        // 1. TÌM MÃ GIAO DỊCH (MD + 6 số) TRONG NỘI DUNG
+        const match = content.match(/(MD\d{6})/i);
 
         if (match) {
-            const ign = match[1]; // Tên người chơi
+            const transactionCode = match[1].toUpperCase(); // Lấy mã: MD123456
 
-            if (amount >= 1000) {
-                const points = Math.floor(amount / 1000); // Tỷ lệ: 1000đ = 1 Point
-                console.log(`[LOGIC] ✅ Duyệt đơn nạp: User=${ign}, Tiền=${amount}, Point=${points}`);
+            // 2. TRA CỨU DATABASE (Lấy thông tin người nạp)
+            const { data: transaction, error } = await supabase
+                .from('pending_transactions')
+                .select('*')
+                .eq('code', transactionCode)
+                .single();
 
-                // --- 👇 PHẦN QUAN TRỌNG: GỬI LỆNH VÀO KÊNH CONSOLE DISCORD ---
-                if (discordClient) {
-                    // Lấy ID kênh Console từ .env
-                    const consoleChannelId = process.env.CONSOLE_CHANNEL_ID;
-                    const channel = discordClient.channels.cache.get(consoleChannelId);
+            if (transaction) {
+                // ✅ TÌM THẤY ĐƠN NẠP HỢP LỆ
+                const realIgn = transaction.ign; // Tên thật (có thể có ký tự lạ)
+                const expectedAmount = transaction.amount;
 
-                    if (channel) {
-                        // 1. Gửi lệnh cộng point (DiscordSRV sẽ đọc dòng này)
-                        await channel.send(`points give ${ign} ${points}`);
+                // Kiểm tra số tiền
+                if (amount >= expectedAmount) {
+                    const points = Math.floor(amount / 1000); // 1000đ = 1 Point
 
-                        // 2. Gửi lệnh thông báo lên màn hình game (cho ngầu)
-                        // (Mẹo: Đợi 1 xíu để lệnh trên chạy xong hãy thông báo)
-                        setTimeout(() => {
-                            channel.send(`say §aCảm ơn §e${ign} §ađã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point!`);
-                        }, 1000);
+                    if (discordClient) {
+                        const consoleChannelId = process.env.CONSOLE_CHANNEL_ID;
+                        const channel = discordClient.channels.cache.get(consoleChannelId);
 
-                        console.log(`[SUCCESS] ✅ Đã gửi lệnh vào kênh Console Discord: p give ${ign} ${points}`);
+                        if (channel) {
+                            // --- THỰC HIỆN LỆNH NẠP ---
+                            // Dùng tên thật lấy từ DB nên an toàn 100%
+                            await channel.send(`points give ${realIgn} ${points}`);
+
+                            // Thông báo trong game sau 1 giây
+                            setTimeout(() => {
+                                channel.send(`say §aĐã nạp thành công cho §e${realIgn} §b(Mã GD: ${transactionCode})`);
+                            }, 1000);
+
+                            console.log(`[SUCCESS] ✅ Đã nạp ${points} Point cho ${realIgn} (Mã: ${transactionCode})`);
+
+                            // 3. XOÁ MÃ KHỎI DB (Để không dùng lại được)
+                            await supabase.from('pending_transactions').delete().eq('code', transactionCode);
+                        } else {
+                            console.error(`[ERROR] ❌ Không tìm thấy kênh Console ID: ${consoleChannelId}`);
+                        }
                     } else {
-                        console.error(`[ERROR] ❌ Không tìm thấy kênh Console! Kiểm tra lại ID trong .env: ${consoleChannelId}`);
+                        console.error(`[ERROR] ❌ Bot chưa sẵn sàng (discordClient is null)`);
                     }
                 } else {
-                    console.error(`[ERROR] ❌ Bot chưa sẵn sàng (discordClient is null)`);
+                    console.warn(`[WARNING] ⚠️ Nạp thiếu tiền! Khách nạp ${amount}, Lệnh gốc ${expectedAmount}`);
                 }
-                // -----------------------------------------------------------
-
             } else {
-                console.warn(`[LOGIC] ⚠️ Số tiền quá nhỏ (${amount}đ).`);
+                console.warn(`[INFO] ⚠️ Mã giao dịch ${transactionCode} không tồn tại hoặc đã hết hạn.`);
             }
         } else {
-            console.warn(`[LOGIC] ⚠️ Sai cú pháp (Không thấy chữ NAP + Tên). Content: ${content}`);
+            console.log(`[INFO] Nội dung không chứa mã MD hợp lệ: ${content}`);
         }
 
         res.status(200).json({ success: true });
 
     } catch (error) {
-        console.error("[ERROR] 💥 Lỗi Webhook:", error);
-        res.status(500).send("Lỗi Server Bot");
+        console.error("[ERROR] 💥 Webhook Crash:", error);
+        res.status(500).send("Server Error");
     }
 });
 
 app.get('/', (req, res) => {
-    res.send('Bot Banking & Console Bridge is Online! 🤖');
+    res.send('Bot Auto-Donate (Transaction ID Mode) is Online! 🤖');
 });
 
-// 👇 Hàm này giờ nhận thêm tham số 'client' từ index.js truyền qua
 export function keepAlive(client) {
-    discordClient = client; // Lưu client vào biến toàn cục để Webhook dùng
+    discordClient = client;
     app.listen(3000, () => {
         console.log("🚀 Server Banking đang chạy ở port 3000!");
     });

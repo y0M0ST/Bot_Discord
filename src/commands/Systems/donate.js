@@ -1,66 +1,74 @@
 import { EmbedBuilder } from 'discord.js';
+import { createClient } from '@supabase/supabase-js';
+import 'dotenv/config';
+
+// Kết nối Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default {
     name: "qr",
-    description: "Tạo mã QR nạp Coin tự động (Ví dụ: =qr 50000 y0M0ST)",
+    description: "Tạo mã nạp định danh (Hỗ trợ mọi tên nhân vật)",
     category: "Info",
     async execute(message, args) {
-        // --- CẤU HÌNH NGÂN HÀNG CỦA BÀ Ở ĐÂY ---
+        // --- 1. CẤU HÌNH NGÂN HÀNG ---
         const BANK_CONFIG = {
-            BANK_ID: 'MB',          // Mã ngân hàng (MB, VCB, ACB...)
-            ACCOUNT_NO: '0833745633', // Số tài khoản
-            ACCOUNT_NAME: 'NGUYEN GIANG TRI BAO', // Tên chủ TK (Viết hoa không dấu)
-            TEMPLATE: 'print'       // Kiểu ảnh QR: 'compact', 'qr_only', 'print'
+            BANK_ID: 'MB',
+            ACCOUNT_NO: '0833745633',
+            ACCOUNT_NAME: 'NGUYEN GIANG TRI BAO',
+            TEMPLATE: 'print'
         };
-        // ----------------------------------------
 
-        // 1. Lấy dữ liệu người dùng nhập
-        const amount = parseInt(args[0]); // Số tiền
-        const ign = args[1]; // Tên Ingame
+        // --- 2. LẤY DỮ LIỆU ---
+        const amount = parseInt(args[0]);
+        const ign = args[1]; // Tên Ingame (Chấp nhận mọi kí tự: _, ., @...)
 
-        // 2. Validate (Kiểm tra lỗi nhập)
-        if (!amount || isNaN(amount) || amount < 1000) {
-            const errorEmbed = new EmbedBuilder()
-                .setColor("#FF0000")
-                .setTitle("⚠️ Lỗi cú pháp!")
-                .setDescription("Số tiền phải là số và tối thiểu **5.000 VNĐ**.")
-                .addFields({ name: "Ví dụ mẫu:", value: "`=qr 50000 Steve`" });
-            return message.reply({ embeds: [errorEmbed] });
+        // --- 3. VALIDATE CƠ BẢN ---
+        if (!amount || isNaN(amount) || amount < 2000) {
+            return message.reply("⚠️ **Lỗi:** Số tiền nạp tối thiểu là **2.000 VNĐ**.\n👉 Ví dụ: `=qr 20000 Steve`");
         }
 
         if (!ign) {
-            const errorEmbed = new EmbedBuilder()
-                .setColor("#FF0000")
-                .setTitle("⚠️ Thiếu tên Ingame!")
-                .setDescription("Em muốn nạp học phí hả? Nhớ ghi đúng tên nhân vật của em vào nha.")
-                .addFields({ name: "Ví dụ mẫu:", value: "`=qr 50000 Steve`" });
-            return message.reply({ embeds: [errorEmbed] });
+            return message.reply("⚠️ **Thiếu tên:** Vui lòng nhập tên nhân vật.\n👉 Ví dụ: `=qr 20000 Steve`");
         }
 
-        // 3. Tính toán Coin (Tỉ lệ: 1.000 VNĐ = 1 Point)
-        const coins = Math.floor(amount / 1000);
+        // --- 4. SINH MÃ GIAO DỊCH NGẪU NHIÊN (Ví dụ: MD839201) ---
+        // Mã này an toàn tuyệt đối, ngân hàng đọc không bao giờ sai
+        const randomCode = Math.floor(100000 + Math.random() * 900000);
+        const transactionCode = `MD${randomCode}`;
 
-        // 4. Tạo Nội dung chuyển khoản (Memo)
-        // Kết quả: "NAP y0M0ST 50 coin"
-        const content = `NAP ${ign} ${coins} coin`;
+        // --- 5. LƯU VÀO DATABASE (CHỜ NẠP) ---
+        const { error } = await supabase
+            .from('pending_transactions')
+            .insert({
+                code: transactionCode,
+                ign: ign,    // Lưu cái tên "khó chịu" (regetonchampan_) vào đây
+                amount: amount
+            });
 
-        // 5. Tạo Link QR VietQR xịn sò
+        if (error) {
+            console.error(error);
+            return message.reply("❌ Lỗi kết nối Database. Vui lòng thử lại sau!");
+        }
+
+        // --- 6. TẠO QR VỚI NỘI DUNG LÀ MÃ GIAO DỊCH ---
+        // Nội dung CK: "NAP MD839201"
+        const content = `NAP ${transactionCode}`;
+
         const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.BANK_ID}-${BANK_CONFIG.ACCOUNT_NO}-${BANK_CONFIG.TEMPLATE}.png?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(BANK_CONFIG.ACCOUNT_NAME)}`;
 
-        // 6. Tạo Embed ĐẸP LUNG LINH ✨
         const embed = new EmbedBuilder()
-            .setColor("#00FF00") // Màu xanh lá uy tín
-            .setTitle(`💎 CỔNG THANH TOÁN TỰ ĐỘNG`)
-            .setDescription(`Hệ thống nạp Point tự động 24/7.\nQuét mã bên dưới để nạp cho nhân vật **${ign}**.`)
-            .setThumbnail("https://cdn-icons-png.flaticon.com/512/2534/2534204.png") // Icon tiền
+            .setColor("#00FF00")
+            .setTitle(`💎 MÃ GIAO DỊCH: ${transactionCode}`)
+            .setDescription(`Hệ thống đã tạo mã riêng cho **${ign}**.\nVui lòng quét mã bên dưới để hoàn tất.`)
+            .setThumbnail("https://cdn-icons-png.flaticon.com/512/2534/2534204.png")
             .addFields(
-                { name: "👤 Người nhận", value: `\`${ign}\``, inline: true },
+                { name: "👤 Nạp cho", value: `\`${ign}\``, inline: true },
                 { name: "💰 Số tiền", value: `\`${amount.toLocaleString()} VNĐ\``, inline: true },
-                { name: "💎 Nhận được", value: `**${coins} Point**`, inline: true },
+                { name: "🔑 Mã Giao Dịch", value: `\`${transactionCode}\``, inline: true },
             )
-            .setImage(qrUrl) // Ảnh QR to đùng
+            .setImage(qrUrl)
             .setFooter({
-                text: `⚠️ QUAN TRỌNG: Không sửa nội dung chuyển khoản để hệ thống tự động duyệt!`,
+                text: `⚠️ Mã này chỉ dùng 1 lần! Không sửa nội dung chuyển khoản.`,
                 iconURL: message.guild.iconURL()
             })
             .setTimestamp();
