@@ -59,10 +59,10 @@ app.post('/webhook-bank', async (req, res) => {
                             console.log(`[SUCCESS] ✅ Đã nạp ${points} Point cho ${realIgn} (Mã: ${transactionCode})`);
 
                             // 2. Lệnh cảm ơn thầm kín (Sửa thành 'msg')
-                            setTimeout(() => {
-                                // Chỉ gửi tin nhắn riêng cho người chơi đó
-                                channel.send(`msg ${realIgn} §a[Banking] §eCảm ơn bạn đã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point! §7(Mã: ${transactionCode})`);
-                            }, 5000);
+                            // setTimeout(() => {
+                            //     // Chỉ gửi tin nhắn riêng cho người chơi đó
+                            //     channel.send(`msg ${realIgn} §a[Banking] §eCảm ơn bạn đã donate §6${amount.toLocaleString()}đ §avà nhận §b${points} Point! §7(Mã: ${transactionCode})`);
+                            // }, 5000);
 
                             // 3. XOÁ MÃ KHỎI DB
                             await supabase.from('pending_transactions').delete().eq('code', transactionCode);
