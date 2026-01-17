@@ -1,4 +1,4 @@
-import { updateMoney } from '../../utils/economyHelper.js'; // Nhớ check tên file helper nha
+import { updateMoney } from '../../utils/economyHandler.js'; // Nhớ check tên file helper nha
 import { safeReply } from '../../utils/discordHelper.js';
 
 // 👇 ID CỦA BÀ (Người duy nhất được dùng lệnh này)
