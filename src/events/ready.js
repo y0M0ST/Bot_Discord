@@ -29,7 +29,7 @@ export default {
                     name: activity.name,
                     type: activity.type
                 }],
-                status: 'online', // Trạng thái có thể là 'online', 'idle', 'dnd', hoặc 'invisible'
+                status: 'dnd', // Trạng thái có thể là 'online', 'idle', 'dnd', hoặc 'invisible'
             });
         };
 
