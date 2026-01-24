@@ -5,7 +5,7 @@ export default {
     name: 'give',
     description: 'Chuyển xu cho người khác',
     aliases: ['pay', 'chuyen', 'ck'],
-
+    category: 'Economy',
     async execute(message, args) {
         // 1. Kiểm tra người nhận
         const targetUser = message.mentions.users.first();
