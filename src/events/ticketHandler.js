@@ -69,7 +69,7 @@ export default {
                 const row = new ActionRowBuilder().addComponents(closeBtn);
 
                 await ticketChannel.send({
-                    content: `👋 Hế lô <@${interaction.user.id}>! Admin ơi có khách nè!`,
+                    content: `👋 Hế lô <@${interaction.user.id}>! Admin ơi <@151342212775411713> có khách nè!`,
                     embeds: [controlEmbed],
                     components: [row]
                 });
