@@ -61,6 +61,35 @@ class Logger {
             console.error("❌ Không gửi được log về Discord:", e);
         }
     }
+
+    // 🔥 LOG LỆNH NGƯỜI DÙNG
+    async command(user, cmdName, channel) {
+        // Log Terminal
+        console.log(chalk.magenta(`[CMD] ${user.tag} dùng lệnh [${cmdName}] tại #${channel.name}`));
+
+        if (!this.client) return;
+        const channelId = process.env.CONSOLE_CHANNEL_ID;
+        if (!channelId) return;
+        const logChannel = this.client.channels.cache.get(channelId);
+        if (!logChannel) return;
+
+        try {
+            const embed = new EmbedBuilder()
+                .setTitle(`🤖 User Used Command`)
+                .addFields(
+                    { name: 'User', value: `${user.tag} (<@${user.id}>)`, inline: true },
+                    { name: 'Command', value: `\`${cmdName}\``, inline: true },
+                    { name: 'Channel', value: `#${channel.name}`, inline: true }
+                )
+                .setColor('#9B59B6') // Màu tím mộng mơ
+                .setTimestamp()
+                .setFooter({ text: 'Audit Log' });
+
+            await logChannel.send({ embeds: [embed] });
+        } catch (e) {
+            console.error("❌ Lỗi gửi log lệnh:", e);
+        }
+    }
 }
 
 const logger = new Logger();

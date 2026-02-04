@@ -1,6 +1,7 @@
 import { Events, PermissionsBitField } from 'discord.js';
 import 'dotenv/config';
 import { safeReply } from '../utils/discordHelper.js';
+import logger from '../utils/logger.js'; // Nhập Logger
 
 export default {
     name: Events.MessageCreate,
@@ -10,9 +11,6 @@ export default {
 
         // 2. Chỉ xử lý lệnh bắt đầu bằng "="
         if (!message.content.startsWith('=')) return;
-
-        // --- 📢 LOG ---
-        console.log(`📩 [CMD] ${message.author.tag}: ${message.content}`);
 
         // 3. Tách lệnh
         const args = message.content.slice(1).trim().split(/ +/);
@@ -52,10 +50,13 @@ export default {
 
         // 4. Chạy lệnh (Nếu không bị cấm)
         try {
+            // 🔥 LOG LỆNH TRƯỚC KHI CHẠY
+            logger.command(message.author, commandName, message.channel);
+
             await command.execute(message, args);
-            console.log(`✅ [SUCCESS] Lệnh [${command.name}] OK.`);
+            // console.log(`✅ [SUCCESS] Lệnh [${command.name}] OK.`); -> Logger lo rồi
         } catch (error) {
-            console.error(`❌ [ERROR] Lỗi lệnh:`, error);
+            logger.error(`Lỗi khi chạy lệnh [${commandName}]`, error); // Logger bắt lỗi này luôn
             safeReply(message, '❌ Có lỗi xảy ra!');
         }
     }
