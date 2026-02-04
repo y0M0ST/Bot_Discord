@@ -1,13 +1,21 @@
-// src/index.js
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Collection } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { keepAlive } from './keep_alive.js';
+
+// --- THƯ VIỆN CHO BANKING & WEB SERVER ---
+import express from 'express';
+import bodyParser from 'body-parser';
+import { Rcon } from 'rcon-client';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ======================================================
+// 1️⃣ CẤU HÌNH BOT & WEB SERVER
+// ======================================================
 
 const client = new Client({
     intents: [
@@ -17,10 +25,114 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
     ],
 });
-
 client.commands = new Collection();
 
-// Hàm quét file đệ quy (quét cả thư mục con)
+const app = express();
+app.use(bodyParser.json());
+
+// Kết nối Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Cấu hình RCON
+const RCON_CONFIG = {
+    host: "blastmc.mcrft.top",
+    port: 24094,
+    password: "0147"
+};
+
+// ======================================================
+// 2️⃣ CÁC HÀM XỬ LÝ BANKING (Giữ nguyên logic của bà)
+// ======================================================
+
+function removeVietnameseTones(str) {
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    return str;
+}
+
+async function sendRconCommand(command) {
+    try {
+        const rcon = await Rcon.connect(RCON_CONFIG);
+        await rcon.send(command);
+        await rcon.end();
+        return true;
+    } catch (error) {
+        console.error(`[RCON ERROR] ❌ Không kết nối được Server: ${error.message}`);
+        return false;
+    }
+}
+
+// --- API WEBHOOK BANKING ---
+app.post('/webhook-bank', async (req, res) => {
+    try {
+        const data = req.body;
+        const amount = data.transferAmount || data.amount;
+        const content = data.content || data.description || "";
+
+        if (!amount || !content) return res.status(400).send("Missing Data");
+
+        const match = content.match(/(MD\d{6})/i);
+        if (match) {
+            const transactionCode = match[1].toUpperCase();
+
+            const { data: transaction } = await supabase
+                .from('pending_transactions')
+                .delete()
+                .eq('code', transactionCode)
+                .select()
+                .single();
+
+            if (transaction) {
+                const realIgn = transaction.ign;
+                const points = Math.floor(amount / 1000);
+
+                if (amount >= transaction.amount) {
+                    console.log(`[LOGIC] 🔄 Đang nạp ${points} Point cho ${realIgn}...`);
+                    const cmdPoints = `points give ${realIgn} ${points}`;
+                    const success = await sendRconCommand(cmdPoints);
+
+                    if (success) {
+                        const msgContent = `&a[BlastMC BANK] &eBan da nhan duoc &6${points} Coin &etu ma GD &b${transactionCode}. Cam on ban!`;
+                        await sendRconCommand(`msg ${realIgn} ${removeVietnameseTones(msgContent)}`);
+                        return res.status(200).json({ success: true });
+                    } else {
+                        await supabase.from('pending_transactions').insert({
+                            code: transaction.code,
+                            ign: transaction.ign,
+                            amount: transaction.amount
+                        });
+                        return res.status(500).send("Minecraft Server Offline - Retry later");
+                    }
+                }
+            }
+        }
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error("[CRITICAL ERROR]", error);
+        res.status(500).send("Server Error");
+    }
+});
+
+// Trang chủ để UptimeRobot ping
+app.get('/', (req, res) => res.send('Bot Mindy & Banking Online! 🤖'));
+
+
+// ======================================================
+// 3️⃣ HÀM NẠP LỆNH & KHỞI ĐỘNG (Logic cũ của bà)
+// ======================================================
+
 function getAllFiles(dir, fileList = []) {
     if (!fs.existsSync(dir)) return [];
     const files = fs.readdirSync(dir);
@@ -51,7 +163,7 @@ async function main() {
         } catch (e) { console.error(e); }
     }
 
-    // 2. NẠP EVENTS (Sẽ tự động nạp file mindyChat.js vừa tạo)
+    // 2. NẠP EVENTS
     const eventsPath = path.join(__dirname, 'events');
     const eventFiles = getAllFiles(eventsPath);
     console.log(`🔔 Tìm thấy ${eventFiles.length} events... Đang nạp!`);
@@ -67,14 +179,22 @@ async function main() {
         } catch (e) { console.error(e); }
     }
 
-    // 3. START BOT
+    // 3. START BOT & SERVER
     try {
+        // Đăng nhập Discord
         await client.login(process.env.DISCORD_TOKEN);
-        keepAlive(); // Khởi động Webhook Banking
-        console.log("✅ Bot Online! Sẵn sàng phục vụ!");
+
+        // Mở Web Server (Quan trọng cho Render)
+        const port = process.env.PORT || 3000;
+        app.listen(port, () => {
+            console.log(`✅ Bot Online!`);
+            console.log(`🚀 Server Banking đang chạy port ${port}!`);
+        });
+
     } catch (err) {
         console.error("❌ Lỗi Login:", err);
     }
 }
 
+// CHẠY HÀM MAIN
 main();
