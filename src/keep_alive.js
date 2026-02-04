@@ -1,34 +1,8 @@
-import 'dotenv/config';
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { setupGlobalErrors } from './utils/logger.js'; // Nhập hàm bắt lỗi
-
-// --- THƯ VIỆN CHO BANKING & WEB SERVER ---
 import express from 'express';
 import bodyParser from 'body-parser';
-import { Rcon } from 'rcon-client';
+import { Rcon } from 'rcon-client'; // Thư viện RCON
 import { createClient } from '@supabase/supabase-js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ======================================================
-// 1️⃣ CẤU HÌNH BOT & WEB SERVER
-// ======================================================
-
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers,
-    ],
-});
-setupGlobalErrors(client); // 🟢 Kích hoạt "Báo Động Đỏ"
-
-client.commands = new Collection();
+import 'dotenv/config';
 
 const app = express();
 app.use(bodyParser.json());
@@ -36,17 +10,14 @@ app.use(bodyParser.json());
 // Kết nối Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Cấu hình RCON
+// --- ⚙️ CẤU HÌNH RCON ---
 const RCON_CONFIG = {
     host: process.env.RCON_IP,      // IP Server từ .env
     port: parseInt(process.env.RCON_PORT), // Port RCON
     password: process.env.RCON_PASS // Mật khẩu từ .env
 };
 
-// ======================================================
-// 2️⃣ CÁC HÀM XỬ LÝ BANKING (Giữ nguyên logic của bà)
-// ======================================================
-
+// Hàm xoá dấu Tiếng Việt (Để gửi RCON không lỗi font)
 function removeVietnameseTones(str) {
     str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
     str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
@@ -65,6 +36,7 @@ function removeVietnameseTones(str) {
     return str;
 }
 
+// Hàm gửi lệnh RCON
 async function sendRconCommand(command) {
     try {
         const rcon = await Rcon.connect(RCON_CONFIG);
@@ -77,19 +49,25 @@ async function sendRconCommand(command) {
     }
 }
 
-// --- API WEBHOOK BANKING ---
+// --- WEBHOOK NHẬN TIỀN ---
 app.post('/webhook-bank', async (req, res) => {
     try {
         const data = req.body;
+        // console.log(`[WEBHOOK] 📩 Data:`, JSON.stringify(data)); // Bật lên nếu muốn soi log
+
         const amount = data.transferAmount || data.amount;
         const content = data.content || data.description || "";
 
         if (!amount || !content) return res.status(400).send("Missing Data");
 
+        // 1. TÌM MÃ GIAO DỊCH (MD + 6 số)
         const match = content.match(/(MD\d{6})/i);
+
         if (match) {
             const transactionCode = match[1].toUpperCase();
 
+            // 🔥 BƯỚC QUAN TRỌNG: XOÁ LUÔN ĐỂ "CHIẾM" GIAO DỊCH
+            // (Ngăn chặn việc nạp đôi nếu Webhook gửi 2 lần)
             const { data: transaction } = await supabase
                 .from('pending_transactions')
                 .delete()
@@ -98,108 +76,59 @@ app.post('/webhook-bank', async (req, res) => {
                 .single();
 
             if (transaction) {
+                // Nếu xoá thành công -> Tức là chưa ai xử lý -> Tiến hành nạp
                 const realIgn = transaction.ign;
                 const points = Math.floor(amount / 1000);
 
                 if (amount >= transaction.amount) {
                     console.log(`[LOGIC] 🔄 Đang nạp ${points} Point cho ${realIgn}...`);
+
+                    // 2. GỬI LỆNH CỘNG TIỀN
                     const cmdPoints = `points give ${realIgn} ${points}`;
                     const success = await sendRconCommand(cmdPoints);
 
                     if (success) {
+                        // ✅ THÀNH CÔNG: Gửi tin nhắn cảm ơn (msg/tell)
+                        // Dùng &a, &b để tô màu cho đẹp
                         const msgContent = `&a[BlastMC BANK] &eBan da nhan duoc &6${points} Coin &etu ma GD &b${transactionCode}. Cam on ban!`;
+
+                        // 👇 Dùng lệnh msg theo yêu cầu của bà
                         await sendRconCommand(`msg ${realIgn} ${removeVietnameseTones(msgContent)}`);
+
+                        console.log(`[SUCCESS] ✅ Đã nạp xong cho ${realIgn}`);
                         return res.status(200).json({ success: true });
                     } else {
+                        // ❌ RCON LỖI (Server tắt): PHẢI HOÀN TÁC DATABASE
+                        // Nhét lại dữ liệu vào DB để lần sau SePay gửi lại thì nạp tiếp
+                        console.warn(`[WARNING] ⚠️ RCON lỗi! Đang hoàn tác dữ liệu...`);
+
                         await supabase.from('pending_transactions').insert({
                             code: transaction.code,
                             ign: transaction.ign,
                             amount: transaction.amount
                         });
+
                         return res.status(500).send("Minecraft Server Offline - Retry later");
                     }
+                } else {
+                    console.warn(`[WARNING] Nạp thiếu tiền (Khách: ${amount}, Lệnh: ${transaction.amount})`);
                 }
+            } else {
+                console.log(`[INFO] Mã ${transactionCode} không tồn tại hoặc đã xử lý.`);
             }
         }
+
         res.status(200).json({ success: true });
+
     } catch (error) {
         console.error("[CRITICAL ERROR]", error);
         res.status(500).send("Server Error");
     }
 });
 
-// Trang chủ để UptimeRobot ping
-app.get('/', (req, res) => res.send('Bot Mindy & Banking Online! 🤖'));
+app.get('/', (req, res) => res.send('Bot Banking RCON Online! 🤖'));
 
-
-// ======================================================
-// 3️⃣ HÀM NẠP LỆNH & KHỞI ĐỘNG (Logic cũ của bà)
-// ======================================================
-
-function getAllFiles(dir, fileList = []) {
-    if (!fs.existsSync(dir)) return [];
-    const files = fs.readdirSync(dir);
-    for (const file of files) {
-        const filePath = path.join(dir, file);
-        if (fs.statSync(filePath).isDirectory()) {
-            getAllFiles(filePath, fileList);
-        } else if (file.endsWith(".js")) {
-            fileList.push({ filePath, fileName: file });
-        }
-    }
-    return fileList;
-}
-
-async function main() {
-    // 1. NẠP COMMANDS
-    const commandsPath = path.join(__dirname, "commands");
-    const commandFiles = getAllFiles(commandsPath);
-    console.log(`📦 Tìm thấy ${commandFiles.length} lệnh... Đang nạp!`);
-
-    for (const { filePath } of commandFiles) {
-        try {
-            const commandModule = await import(pathToFileURL(filePath).href);
-            const cmd = commandModule.default;
-            if (cmd?.name && cmd?.execute) {
-                client.commands.set(cmd.name, cmd);
-            }
-        } catch (e) { console.error(e); }
-    }
-
-    // 2. NẠP EVENTS
-    const eventsPath = path.join(__dirname, 'events');
-    const eventFiles = getAllFiles(eventsPath);
-    console.log(`🔔 Tìm thấy ${eventFiles.length} events... Đang nạp!`);
-
-    for (const { filePath } of eventFiles) {
-        try {
-            const eventModule = await import(pathToFileURL(filePath).href);
-            const event = eventModule.default;
-            if (event?.name && event?.execute) {
-                if (event.once) client.once(event.name, (...args) => event.execute(...args));
-                else client.on(event.name, (...args) => event.execute(...args));
-            }
-        } catch (e) { console.error(e); }
-    }
-
-    // ========================================================
-    // 🔥 SỬA ĐOẠN NÀY: MỞ SERVER TRƯỚC - LOGIN SAU
-    // ========================================================
-
-    // 3. START SERVER (Chạy ngay lập tức để Render thấy cổng mở)
+export function keepAlive() {
     const port = process.env.PORT || 3000;
-    app.listen(port, () => {
-        console.log(`🚀 Server Banking đang chạy port ${port}!`);
-        // Bot Mindy & Banking Online!
-    });
-
-    // 4. START BOT (Login sau cũng được)
-    try {
-        await client.login(process.env.DISCORD_TOKEN);
-        console.log("✅ Bot Online! Sẵn sàng phục vụ!");
-    } catch (err) {
-        console.error("❌ Lỗi Login:", err);
-    }
+    app.listen(port, () => console.log(`🚀 Server Banking đang chạy port ${port}!`));
 }
-
-main();
