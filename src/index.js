@@ -179,22 +179,24 @@ async function main() {
         } catch (e) { console.error(e); }
     }
 
-    // 3. START BOT & SERVER
+    // ========================================================
+    // 🔥 SỬA ĐOẠN NÀY: MỞ SERVER TRƯỚC - LOGIN SAU
+    // ========================================================
+
+    // 3. START SERVER (Chạy ngay lập tức để Render thấy cổng mở)
+    const port = process.env.PORT || 3000;
+    app.listen(port, () => {
+        console.log(`🚀 Server Banking đang chạy port ${port}!`);
+        // Bot Mindy & Banking Online!
+    });
+
+    // 4. START BOT (Login sau cũng được)
     try {
-        // Đăng nhập Discord
         await client.login(process.env.DISCORD_TOKEN);
-
-        // Mở Web Server (Quan trọng cho Render)
-        const port = process.env.PORT || 3000;
-        app.listen(port, () => {
-            console.log(`✅ Bot Online!`);
-            console.log(`🚀 Server Banking đang chạy port ${port}!`);
-        });
-
+        console.log("✅ Bot Online! Sẵn sàng phục vụ!");
     } catch (err) {
         console.error("❌ Lỗi Login:", err);
     }
 }
 
-// CHẠY HÀM MAIN
 main();
