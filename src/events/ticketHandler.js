@@ -18,8 +18,15 @@ export default {
             // 2. Kiểm tra xem user này đã có ticket nào chưa (Chống spam tạo 100 cái)
             // Tìm kênh nào bắt đầu bằng "ticket-" và kết thúc bằng tên user
             // Lưu ý: Tên kênh discord luôn viết thường và không dấu cách
-            const channelName = `ticket-${interaction.user.username.toLowerCase().replace(/\s+/g, '')}`;
-            const existingChannel = interaction.guild.channels.cache.find(c => c.name === channelName);
+            // 2. CHECK TRÙNG LẶP (Dựa vào Topic thay vì Tên Kênh)
+            const categoryId = process.env.TICKET_CATEGORY_ID;
+
+            // Lấy tất cả kênh trong danh mục Ticket
+            const existingChannel = interaction.guild.channels.cache.find(c =>
+                c.parentId === categoryId &&
+                c.topic &&
+                c.topic.includes(interaction.user.id)
+            );
 
             if (existingChannel) {
                 return interaction.editReply(`🚫 **Bà có ticket rồi mà!** Vào đây nè: <#${existingChannel.id}>`);
@@ -27,12 +34,13 @@ export default {
 
             // 3. Tạo kênh mới
             try {
-                const categoryId = process.env.TICKET_CATEGORY_ID;
+                const channelName = `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildText,
-                    parent: categoryId, // Bỏ vào danh mục Admin quản lý
+                    parent: categoryId,
+                    topic: `Ticket Owner: ${interaction.user.id} | Name: ${interaction.user.tag}`, // 🔑 Đánh dấu chủ sở hữu vào đây
                     permissionOverwrites: [
                         {
                             id: interaction.guild.id, // Role @everyone
@@ -46,7 +54,6 @@ export default {
                             id: interaction.client.user.id, // Bot Mindy
                             allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages], // ✅ Bot phải thấy để điều hành
                         }
-                        // Nếu muốn thêm role Admin/Mod thì thêm vào đây
                     ],
                 });
 
