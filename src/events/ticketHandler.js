@@ -94,6 +94,17 @@ export default {
         // 🔴 TRƯỜNG HỢP 2: BẤM NÚT ĐÓNG TICKET
         // ====================================================
         if (interaction.customId === 'btn_close_ticket') {
+            // 🔒 CHỈ ADMIN HOẶC SUPPORT MỚI ĐƯỢC ĐÓNG
+            const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+            const isSupport = interaction.member.roles.cache.has(process.env.SUPPORT_ROLE_ID);
+
+            if (!isAdmin && !isSupport) {
+                return interaction.reply({
+                    content: "🚫 **Chỉ Admin hoặc Support mới được đóng ticket nha!**",
+                    ephemeral: true
+                });
+            }
+
             await interaction.reply("⏳ **Ticket sẽ bị xoá sau 3 giây...**");
 
             setTimeout(() => {
