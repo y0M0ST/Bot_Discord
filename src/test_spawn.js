@@ -11,7 +11,6 @@ const url = "https://www.youtube.com/watch?v=vwtsSCYVW3k";
 const flags = {
   dumpSingleJson: true,
   noWarnings: true,
-  noCallHome: true,
   preferFreeFormats: true,
   skipDownload: true,
   simulate: true
