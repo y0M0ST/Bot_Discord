@@ -6,16 +6,24 @@ import client from './discord.js';
 import fs from 'fs';
 import path from 'path';
 
-// Tạo file cookies ảo từ Biến Môi Trường (Render)
-let cookiePath = undefined;
+// Cơ chế đọc Cookie thông minh: Hỗ trợ cả Render và Local
+let cookiePath = path.join(process.cwd(), 'cookies.txt');
+
+// Nếu chạy trên Render (có biến môi trường), tự động đè/tạo file cookies.txt
 if (process.env.YOUTUBE_COOKIE) {
-    cookiePath = path.join(process.cwd(), 'cookies.txt');
     try {
         fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIE, 'utf8');
-        console.log("🍪 [Bảo Mật] Đã nạp Cookie YouTube thành công để vượt rào!");
+        console.log("🍪 [Render] Đã nạp Cookie YouTube từ Biến Môi Trường!");
     } catch (e) {
         console.error("❌ Lỗi khi ghi file Cookie:", e);
     }
+}
+
+// Kiểm tra xem file cookies.txt có tồn tại hay không (Dành cho chạy Local)
+if (!fs.existsSync(cookiePath)) {
+    cookiePath = undefined;
+} else {
+    console.log("🍪 [Local] Đã tìm thấy và sử dụng file cookies.txt!");
 }
 
 const distube = new DisTube(client, {
