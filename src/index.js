@@ -5,6 +5,11 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { setupGlobalErrors } from './utils/logger.js'; // Nhập hàm bắt lỗi
 
+// --- THƯ VIỆN CHO NHẠC (DISTUBE) ---
+import { DisTube } from 'distube';
+import { YtDlpPlugin } from '@distube/yt-dlp';
+import { SoundCloudPlugin } from '@distube/soundcloud';
+
 // --- THƯ VIỆN CHO BANKING & WEB SERVER ---
 import express from 'express';
 import bodyParser from 'body-parser';
@@ -24,9 +29,39 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates, // Yêu cầu để dùng tính năng Voice/Music
     ],
 });
-setupGlobalErrors(client); // 🟢 Kích hoạt "Báo Động Đỏ"
+setupGlobalErrors(client); // 🟢 Kích hoạt "Báo Động Đỏ" - Fix warning src
+
+// --- CẤU HÌNH DISTUBE ---
+client.distube = new DisTube(client, {
+    plugins: [
+        new SoundCloudPlugin(),
+        new YtDlpPlugin()
+    ],
+});
+
+// --- LẮNG NGHE SỰ KIỆN NHẠC ---
+client.distube
+    .on("debug", (message) => {
+        console.log(`[DisTube Debug]: ${message}`);
+    })
+    .on("playSong", (queue, song) => {
+        queue.textChannel.send(`🎶 Đang phát: **${song.name}** - \`[${song.formattedDuration}]\``);
+    })
+    .on("addSong", (queue, song) => {
+        queue.textChannel.send(`✅ Đã thêm: **${song.name}** - \`[${song.formattedDuration}]\``);
+    })
+    .on("addList", (queue, playlist) => {
+        queue.textChannel.send(`✅ Đã thêm playlist: **${playlist.name}** (${playlist.songs.length} bài)`);
+    })
+    .on("error", (error, queue, song) => {
+        console.error("❌ DISTUBE ERROR LOG:", error);
+        if (queue && queue.textChannel) {
+            queue.textChannel.send(`❌ Có lỗi: ${String(error.message).slice(0, 2000)}`).catch(console.error);
+        }
+    });
 
 client.commands = new Collection();
 

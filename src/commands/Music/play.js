@@ -11,13 +11,16 @@ export default {
 
         const query = args.join(" ");
 
+        console.log(`[Play Command] 📝 User: ${message.author.tag}, Voice: ${voiceChannel.name}, Query: "${query}"`);
         try {
             // Thử phát bình thường
+            console.log(`[Play Command] 🔍 Đang gọi distube.play...`);
             await message.client.distube.play(voiceChannel, query, {
                 member: message.member,
                 textChannel: message.channel,
                 message
             });
+            console.log(`[Play Command] ✅ distube.play hoàn thành.`);
         } catch (e) {
             console.error("[Play Error 1]:", e.message);
 
