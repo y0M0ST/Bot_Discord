@@ -1,4 +1,6 @@
 // src/commands/Music/play.js
+import Logger from '../../utils/logger.js';
+
 export default {
     name: "play",
     description: "Phát nhạc (DisTube)",
@@ -23,6 +25,7 @@ export default {
             console.log(`[Play Command] ✅ distube.play hoàn thành.`);
         } catch (e) {
             console.error("[Play Error 1]:", e.message);
+            Logger.music(e, { textChannel: message.channel });
 
             // 🔥 CƠ CHẾ CỨU HỘ: NẾU LINK SOUNDCLOUD LỖI (404)
             if (query.includes("soundcloud.com")) {
