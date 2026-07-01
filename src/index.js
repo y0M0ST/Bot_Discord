@@ -4,6 +4,7 @@ import './core/distube.js'; // Khởi tạo và gán distube vào client
 import { loadCommands } from './handlers/commandHandler.js';
 import { loadEvents } from './handlers/eventHandler.js';
 import Logger from './utils/logger.js';
+import { keepAlive } from './keep_alive.js';
 
 // Bắt lỗi toàn cục để không bị văng bot và báo cáo về Discord
 process.on('uncaughtException', (error) => {
@@ -17,6 +18,9 @@ process.on('unhandledRejection', (reason, promise) => {
 async function bootstrap() {
     try {
         console.log("🔄 Bắt đầu khởi động Bot Mindy...");
+
+        // Khởi động Web Server giả để lách luật Render.com
+        keepAlive();
 
         // 1. Nạp Lệnh (Commands)
         await loadCommands(client);
