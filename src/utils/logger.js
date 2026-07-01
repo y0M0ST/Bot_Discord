@@ -1,118 +1,82 @@
-import chalk from "chalk";
-import { EmbedBuilder } from "discord.js";
+import { WebhookClient, EmbedBuilder } from 'discord.js';
+import { config } from '../config/env.js';
+
+// Khởi tạo các Webhook Client nếu có URL
+const crashWebhook = config.webhooks.crash ? new WebhookClient({ url: config.webhooks.crash }) : null;
+const musicWebhook = config.webhooks.music ? new WebhookClient({ url: config.webhooks.music }) : null;
+const statusWebhook = config.webhooks.status ? new WebhookClient({ url: config.webhooks.status }) : null;
+const activityWebhook = config.webhooks.activity ? new WebhookClient({ url: config.webhooks.activity }) : null;
 
 class Logger {
-    constructor() {
-        this.client = null;
+    static crash(error, context = "Uncaught Exception") {
+        console.error(`[CRASH - ${context}]`, error);
+        if (!crashWebhook) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle(`🚨 [CRASH] ${context}`)
+            .setColor("DarkRed")
+            .setDescription(`\`\`\`js\n${error.stack ? String(error.stack).slice(0, 4000) : error.message}\n\`\`\``)
+            .setTimestamp();
+
+        crashWebhook.send({ embeds: [embed] }).catch(() => {});
     }
 
-    // Nạp Client Discord vào để gửi log
-    setClient(client) {
-        this.client = client;
-    }
+    static music(error, queue = null) {
+        console.error("[MUSIC ERROR]", error);
+        if (!musicWebhook) return;
 
-    log(type, message, err = null) {
-        const timestamp = new Date().toISOString();
-        const formatted = `[${type}] ${timestamp} - ${message}`;
-
-        // 1. Log ra Terminal (Giữ màu mè cho đẹp)
-        switch (type) {
-            case "INFO":
-                console.log(chalk.blue(formatted));
-                break;
-            case "WARN":
-                console.log(chalk.yellow(formatted));
-                break;
-            case "ERROR":
-                console.log(chalk.red(formatted));
-                if (err) console.error(err);
-                break;
-            default:
-                console.log(formatted);
+        const embed = new EmbedBuilder()
+            .setTitle("🎵 [Music Error]")
+            .setColor("Orange")
+            .setDescription(`\`\`\`js\n${error.message || error}\n\`\`\``)
+            .setTimestamp();
+        
+        if (queue && queue.textChannel) {
+            embed.addFields({ name: "Server", value: `${queue.textChannel.guild.name} (${queue.textChannel.guildId})` });
         }
 
-        // 2. Gửi về Discord (Nếu đã nạp Client và có Channel ID)
-        this.sendToDiscord(type, message, err);
+        musicWebhook.send({ embeds: [embed] }).catch(() => {});
     }
 
-    info(message) { this.log("INFO", message); }
-    warn(message) { this.log("WARN", message); }
-    error(message, err = null) { this.log("ERROR", message, err); }
+    static status(title, message, color = "Green") {
+        console.log(`[STATUS] ${title} - ${message}`);
+        if (!statusWebhook) return;
 
-    async sendToDiscord(type, message, err) {
-        // Chỉ gửi ERROR và WARN để đỡ spam, hoặc INFO nếu cần
-        if (!this.client) return;
+        const embed = new EmbedBuilder()
+            .setTitle(title)
+            .setColor(color)
+            .setDescription(message)
+            .setTimestamp();
 
-        const channelId = process.env.CONSOLE_CHANNEL_ID;
-        if (!channelId) return;
-
-        const channel = this.client.channels.cache.get(channelId);
-        if (!channel) return;
-
-        try {
-            const embed = new EmbedBuilder()
-                .setTitle(`🚨 LOG: ${type}`)
-                .setDescription(`**Message:** ${message}\n${err ? `\`\`\`js\n${err.stack || err}\n\`\`\`` : ''}`)
-                .setColor(type === 'ERROR' ? '#FF0000' : (type === 'WARN' ? '#FFA500' : '#0099FF'))
-                .setTimestamp();
-
-            await channel.send({ embeds: [embed] });
-        } catch (e) {
-            console.error("❌ Không gửi được log về Discord:", e);
-        }
+        statusWebhook.send({ embeds: [embed] }).catch(() => {});
     }
 
-    // 🔥 LOG LỆNH NGƯỜI DÙNG
-    async command(user, cmdName, channel) {
-        // Log Terminal
-        console.log(chalk.magenta(`[CMD] ${user.tag} dùng lệnh [${cmdName}] tại #${channel.name}`));
+    static activity(action, guild) {
+        console.log(`[ACTIVITY] ${action}: ${guild.name}`);
+        if (!activityWebhook) return;
 
-        if (!this.client) return;
-        const channelId = process.env.CONSOLE_CHANNEL_ID;
-        if (!channelId) return;
-        const logChannel = this.client.channels.cache.get(channelId);
-        if (!logChannel) return;
+        const isJoin = action === "JOIN";
+        const embed = new EmbedBuilder()
+            .setTitle(isJoin ? "👋 Bot đã tham gia Server mới" : "🚪 Bot bị đá khỏi Server")
+            .setColor(isJoin ? "Green" : "Red")
+            .addFields(
+                { name: "Tên Server", value: `${guild.name}`, inline: true },
+                { name: "ID", value: `${guild.id}`, inline: true },
+                { name: "Số thành viên", value: `${guild.memberCount}`, inline: true }
+            )
+            .setTimestamp();
 
-        try {
-            const embed = new EmbedBuilder()
-                .setTitle(`🤖 User Used Command`)
-                .addFields(
-                    { name: 'User', value: `${user.tag} (<@${user.id}>)`, inline: true },
-                    { name: 'Command', value: `\`${cmdName}\``, inline: true },
-                    { name: 'Channel', value: `#${channel.name}`, inline: true }
-                )
-                .setColor('#9B59B6') // Màu tím mộng mơ
-                .setTimestamp()
-                .setFooter({ text: 'Audit Log' });
+        activityWebhook.send({ embeds: [embed] }).catch(() => {});
+    }
 
-            await logChannel.send({ embeds: [embed] });
-        } catch (e) {
-            console.error("❌ Lỗi gửi log lệnh:", e);
-        }
+    static command(author, commandName, channel) {
+        console.log(`[COMMAND] ${author.tag} dùng lệnh ${commandName} ở #${channel.name}`);
+    }
+
+    static error(context, error) {
+        console.error(`[ERROR] ${context}`, error);
+        this.crash(error, context);
     }
 }
 
-const logger = new Logger();
-
-// Hàm kích hoạt bắt lỗi toàn hệ thống
-export function setupGlobalErrors(client) {
-    logger.setClient(client);
-
-    // Bắt lỗi Promise (ví dụ quên try-catch)
-    process.on('unhandledRejection', (reason, promise) => {
-        logger.error("Unhandled Rejection (Lỗi chưa xử lý)", reason);
-    });
-
-    // Bắt lỗi Code (ví dụ sai cú pháp, biến null)
-    process.on('uncaughtException', (err) => {
-        logger.error("Uncaught Exception (Lỗi nghiêm trọng)", err);
-    });
-
-    // Lỗi từ Discord
-    client.on('error', (err) => logger.error("Discord Client Error", err));
-    client.on('warn', (info) => logger.warn(`Discord Warning: ${info}`));
-
-    console.log(chalk.green("✅ Đã kích hoạt hệ thống báo lỗi tự động!"));
-}
-
-export default logger;
+export default Logger;

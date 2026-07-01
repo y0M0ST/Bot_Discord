@@ -1,6 +1,4 @@
 import { Client, GatewayIntentBits, Collection } from 'discord.js';
-import { setupGlobalErrors } from '../utils/logger.js';
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -12,6 +10,5 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-setupGlobalErrors(client);
 
 export default client;

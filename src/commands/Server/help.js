@@ -17,7 +17,15 @@ export default {
         const categories = new Map();
 
         commands.forEach((cmd) => {
-            const category = cmd.category || "Khác"; // Nếu quên đặt category thì ném vào "Khác"
+            let category = cmd.category || "Khác";
+            
+            // Chuẩn hóa và Việt hóa tên danh mục cho siêu gọn
+            if (["System", "Systems", "Utility", "Info", "Server"].includes(category)) category = "Hệ thống";
+            if (["Mod", "Moderation"].includes(category)) category = "Quản trị";
+            if (["Game", "Games", "Mini-Games", "Fun"].includes(category)) category = "Giải trí";
+            if (["Economy"].includes(category)) category = "Kinh tế";
+            if (["Music"].includes(category)) category = "Âm nhạc";
+
             if (!categories.has(category)) {
                 categories.set(category, []);
             }
@@ -27,10 +35,11 @@ export default {
         // 2. Tạo các lựa chọn cho Menu Dropdown
         // Map icon cho đẹp đội hình
         const emojis = {
-            "Music": "🎵",
-            "Moderation": "🛡️",
-            "System": "⚙️",
-            "Fun": "🎮",
+            "Âm nhạc": "🎵",
+            "Quản trị": "🛡️",
+            "Hệ thống": "⚙️",
+            "Giải trí": "🎮",
+            "Kinh tế": "💰",
             "Khác": "📂"
         };
 

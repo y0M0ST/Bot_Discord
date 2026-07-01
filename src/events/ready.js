@@ -1,10 +1,12 @@
 import { ActivityType, Events } from 'discord.js';
+import Logger from '../utils/logger.js';
 
 export default {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
         console.log(`✅ Bot: ${client.user.tag} đã online!`);
+        Logger.status("🟢 ONLINE", `Bot: ${client.user.tag} đã khởi động thành công và sẵn sàng phục vụ!`, "Green");
 
         // Cả một rổ status cute, bà có thể tự nghĩ thêm và thêm vào mảng này nha
         const cuteStatuses = [
