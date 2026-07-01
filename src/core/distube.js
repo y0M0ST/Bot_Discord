@@ -8,7 +8,7 @@ import path from 'path';
 
 // Cơ chế đọc Cookie thông minh: Hỗ trợ cả Render và Local
 let cookiePath = path.join(process.cwd(), 'cookies.txt');
-const ytDlpConfPath = path.join(process.cwd(), 'yt-dlp.conf');
+const ytDlpConfPath = path.join(process.cwd(), 'node_modules', '@distube', 'yt-dlp', 'bin', 'yt-dlp.conf');
 
 // Nếu chạy trên Render (có biến môi trường), tự động đè/tạo file cookies.txt
 if (process.env.YOUTUBE_COOKIE) {
@@ -22,9 +22,15 @@ if (process.env.YOUTUBE_COOKIE) {
 
 // Kiểm tra xem file cookies.txt có tồn tại hay không (Dành cho chạy Local)
 if (fs.existsSync(cookiePath)) {
-    console.log("🍪 Đã tìm thấy file cookies.txt! Đang cấu hình yt-dlp...");
-    // Ép yt-dlp phải đọc file cookie này thông qua file cấu hình
-    fs.writeFileSync(ytDlpConfPath, `--no-warnings\n--cookies "${cookiePath}"`, 'utf8');
+    console.log("🍪 Đã tìm thấy file cookies.txt! Đang ép yt-dlp nhận Cookie...");
+    // Ép yt-dlp phải đọc file cookie này thông qua Portable Config (chui vào tận lõi)
+    try {
+        const binDir = path.dirname(ytDlpConfPath);
+        if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+        fs.writeFileSync(ytDlpConfPath, `--no-warnings\n--cookies "${cookiePath}"`, 'utf8');
+    } catch (e) {
+        console.error("❌ Không thể cấu hình lõi yt-dlp:", e);
+    }
 } else {
     // Nếu không có cookie, xóa file cấu hình cũ (nếu có) để tránh lỗi
     if (fs.existsSync(ytDlpConfPath)) fs.unlinkSync(ytDlpConfPath);
