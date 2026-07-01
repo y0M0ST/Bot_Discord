@@ -1,5 +1,5 @@
 import { Events, PermissionsBitField } from 'discord.js';
-import 'dotenv/config';
+import { config } from '../config/env.js';
 import { safeReply } from '../utils/discordHelper.js';
 import logger from '../utils/logger.js'; // Nhập Logger
 
@@ -29,7 +29,7 @@ export default {
         // ======================================================
         // 🚫 LOGIC CẤM: KHÔNG ĐƯỢC DÙNG Ở CHAT CHUNG
         // ======================================================
-        const generalChatId = process.env.ALLOWED_CHANNEL_ID; // Lấy ID Chat Chung
+        const generalChatId = config.ALLOWED_CHANNEL_ID; // Lấy ID Chat Chung
         const isAdmin = message.member?.permissions.has(PermissionsBitField.Flags.Administrator);
 
         // Nếu đang ở Chat Chung VÀ không phải Admin -> CẤM
