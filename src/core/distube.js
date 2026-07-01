@@ -3,11 +3,25 @@ import { YtDlpPlugin } from '@distube/yt-dlp';
 import { SoundCloudPlugin } from '@distube/soundcloud';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import client from './discord.js';
+import fs from 'fs';
+import path from 'path';
+
+// Tạo file cookies ảo từ Biến Môi Trường (Render)
+let cookiePath = undefined;
+if (process.env.YOUTUBE_COOKIE) {
+    cookiePath = path.join(process.cwd(), 'cookies.txt');
+    try {
+        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIE, 'utf8');
+        console.log("🍪 [Bảo Mật] Đã nạp Cookie YouTube thành công để vượt rào!");
+    } catch (e) {
+        console.error("❌ Lỗi khi ghi file Cookie:", e);
+    }
+}
 
 const distube = new DisTube(client, {
     plugins: [
         new SoundCloudPlugin(),
-        new YtDlpPlugin()
+        new YtDlpPlugin(cookiePath ? { update: false, cookies: cookiePath } : { update: false })
     ]
 });
 
