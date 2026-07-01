@@ -1,27 +1,30 @@
 import { ActivityType, Events } from 'discord.js';
-import { getPlayerCount } from '../utils/fivemHelper.js';
 
 export default {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        console.log(`✅ Bot đã khởi động: ${client.user.tag}`);
+        console.log(`✅ Bot: ${client.user.tag} đã online!`);
 
-        const updateFiveMStatus = async () => {
-            try {
-                const count = await getPlayerCount();
-                client.user.setActivity(`Đang soi ${count} giang hồ ở Haven RP`, {
-                    type: ActivityType.Watching,
-                });
-            } catch (error) {
-                console.error('[FiveM Status]', error.message);
-                client.user.setActivity('Haven RP offline hoặc bật khiên API', {
-                    type: ActivityType.Watching,
-                });
-            }
-        };
+        // Cả một rổ status cute, bà có thể tự nghĩ thêm và thêm vào mảng này nha
+        const cuteStatuses = [
+            // { text: 'Linh Đan là số 1 💖', type: ActivityType.Playing },
+            // { text: 'giọng Linh Đan 🎧', type: ActivityType.Listening },
+            // { text: 'chờ Linh Đan rep tin nhắn 🥺', type: ActivityType.Watching },
+            { text: 'với Linh Đan 🎮', type: ActivityType.Playing }
+        ];
 
-        updateFiveMStatus();
-        setInterval(updateFiveMStatus, 3 * 60 * 1000);
+        let i = 0;
+
+        // Cho bot tự động đổi status liên tục (hiện tại đang để 15 giây đổi 1 lần)
+        setInterval(() => {
+            const status = cuteStatuses[i % cuteStatuses.length];
+
+            client.user.setActivity(status.text, {
+                type: status.type
+            });
+
+            i++;
+        }, 3000); // 15000 mili-giây = 15 giây (bà muốn chậm hơn thì chỉnh lên 30000 nha)
     },
 };
