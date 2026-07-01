@@ -8,6 +8,7 @@ import path from 'path';
 
 // Cơ chế đọc Cookie thông minh: Hỗ trợ cả Render và Local
 let cookiePath = path.join(process.cwd(), 'cookies.txt');
+const ytDlpConfPath = path.join(process.cwd(), 'yt-dlp.conf');
 
 // Nếu chạy trên Render (có biến môi trường), tự động đè/tạo file cookies.txt
 if (process.env.YOUTUBE_COOKIE) {
@@ -20,16 +21,19 @@ if (process.env.YOUTUBE_COOKIE) {
 }
 
 // Kiểm tra xem file cookies.txt có tồn tại hay không (Dành cho chạy Local)
-if (!fs.existsSync(cookiePath)) {
-    cookiePath = undefined;
+if (fs.existsSync(cookiePath)) {
+    console.log("🍪 Đã tìm thấy file cookies.txt! Đang cấu hình yt-dlp...");
+    // Ép yt-dlp phải đọc file cookie này thông qua file cấu hình
+    fs.writeFileSync(ytDlpConfPath, `--no-warnings\n--cookies "${cookiePath}"`, 'utf8');
 } else {
-    console.log("🍪 [Local] Đã tìm thấy và sử dụng file cookies.txt!");
+    // Nếu không có cookie, xóa file cấu hình cũ (nếu có) để tránh lỗi
+    if (fs.existsSync(ytDlpConfPath)) fs.unlinkSync(ytDlpConfPath);
 }
 
 const distube = new DisTube(client, {
     plugins: [
         new SoundCloudPlugin(),
-        new YtDlpPlugin(cookiePath ? { update: false, cookies: cookiePath } : { update: false })
+        new YtDlpPlugin({ update: false })
     ]
 });
 
