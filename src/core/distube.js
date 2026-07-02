@@ -1,59 +1,59 @@
 import { DisTube } from 'distube';
-import { YtDlpPlugin } from '@distube/yt-dlp';
 import { SoundCloudPlugin } from '@distube/soundcloud';
+import ytdl from '@distube/ytdl-core';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import client from './discord.js';
 import fs from 'fs';
 import path from 'path';
 
-// Cơ chế đọc Cookie thông minh: Hỗ trợ cả Render và Local
 let cookiePath = path.join(process.cwd(), 'cookies.txt');
-const ytDlpConfPath = path.join(process.cwd(), 'node_modules', '@distube', 'yt-dlp', 'bin', 'yt-dlp.conf');
+let agent = null;
 
-// Nếu chạy trên Render (có biến môi trường), tự động đè/tạo file cookies.txt
-if (process.env.YOUTUBE_COOKIE) {
-    try {
-        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIE, 'utf8');
-        console.log("🍪 [Render] Đã nạp Cookie YouTube từ Biến Môi Trường!");
-    } catch (e) {
-        console.error("❌ Lỗi khi ghi file Cookie:", e);
+// Hàm tự động chuyển đổi Cookie dạng Text sang dạng JSON cho ytdl-core
+function parseCookies(cookieStr) {
+    const cookiesJson = [];
+    const lines = cookieStr.split('\n');
+    for (let line of lines) {
+        if (!line.startsWith('#') && line.trim() !== '') {
+            const parts = line.split('\t');
+            if (parts.length >= 7) {
+                cookiesJson.push({
+                    domain: parts[0],
+                    expirationDate: parseInt(parts[4]) || 0,
+                    path: parts[2],
+                    secure: parts[3] === 'TRUE',
+                    httpOnly: false,
+                    name: parts[5],
+                    value: parts[6].replace('\r', '')
+                });
+            }
+        }
     }
+    return cookiesJson;
 }
 
-// Xóa file yt-dlp.conf cũ ở thư mục gốc (nếu có) để tránh xung đột cấu hình
-const oldConf1 = path.join(process.cwd(), 'yt-dlp.conf');
-const oldConf2 = path.join(process.cwd(), 'src', 'yt-dlp.conf');
-if (fs.existsSync(oldConf1)) fs.unlinkSync(oldConf1);
-if (fs.existsSync(oldConf2)) fs.unlinkSync(oldConf2);
+// Lấy Cookie từ Biến Môi Trường hoặc file
+let cookieStr = "";
+if (process.env.YOUTUBE_COOKIE) {
+    cookieStr = process.env.YOUTUBE_COOKIE;
+    console.log("🍪 [Render] Đã nạp Cookie YouTube từ Biến Môi Trường!");
+} else if (fs.existsSync(cookiePath)) {
+    cookieStr = fs.readFileSync(cookiePath, 'utf8');
+    console.log("🍪 Đã tìm thấy file cookies.txt!");
+}
 
-// Kiểm tra xem file cookies.txt có tồn tại hay không (Dành cho chạy Local)
-if (fs.existsSync(cookiePath)) {
-    console.log("🍪 Đã tìm thấy file cookies.txt! Đang ép yt-dlp nhận Cookie...");
-    // Ép yt-dlp phải đọc file cookie này thông qua Portable Config (chui vào tận lõi)
+if (cookieStr) {
     try {
-        const binDir = path.dirname(ytDlpConfPath);
-        if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
-        
-        // Thêm --extractor-args để đánh lừa YouTube (Giả lập Android VR) để lấy được định dạng Audio
-        const ytDlpConfig = [
-            "--no-warnings",
-            `--cookies "${cookiePath}"`,
-            "--extractor-args \"youtube:player_client=android_vr\""
-        ].join('\n');
-        
-        fs.writeFileSync(ytDlpConfPath, ytDlpConfig, 'utf8');
+        const cookiesJson = parseCookies(cookieStr);
+        agent = ytdl.createAgent(cookiesJson);
+        console.log("✅ Đã tiêm Cookie vào lõi ytdl-core thành công!");
     } catch (e) {
-        console.error("❌ Không thể cấu hình lõi yt-dlp:", e);
+        console.error("❌ Lỗi khi phân tích Cookie:", e);
     }
-} else {
-    // Nếu không có cookie, xóa file cấu hình cũ (nếu có) để tránh lỗi
-    if (fs.existsSync(ytDlpConfPath)) fs.unlinkSync(ytDlpConfPath);
 }
 
 const distube = new DisTube(client, {
     plugins: [
-        new SoundCloudPlugin(),
-        new YtDlpPlugin({ update: false })
     ]
 });
 
