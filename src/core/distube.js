@@ -27,7 +27,15 @@ if (fs.existsSync(cookiePath)) {
     try {
         const binDir = path.dirname(ytDlpConfPath);
         if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
-        fs.writeFileSync(ytDlpConfPath, `--no-warnings\n--cookies "${cookiePath}"`, 'utf8');
+        
+        // Thêm --extractor-args để đánh lừa YouTube (Giả lập Android VR) để lấy được định dạng Audio
+        const ytDlpConfig = [
+            "--no-warnings",
+            `--cookies "${cookiePath}"`,
+            "--extractor-args \"youtube:player_client=android_vr\""
+        ].join('\n');
+        
+        fs.writeFileSync(ytDlpConfPath, ytDlpConfig, 'utf8');
     } catch (e) {
         console.error("❌ Không thể cấu hình lõi yt-dlp:", e);
     }
