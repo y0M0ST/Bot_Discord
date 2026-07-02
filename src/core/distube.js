@@ -20,6 +20,12 @@ if (process.env.YOUTUBE_COOKIE) {
     }
 }
 
+// Xóa file yt-dlp.conf cũ ở thư mục gốc (nếu có) để tránh xung đột cấu hình
+const oldConf1 = path.join(process.cwd(), 'yt-dlp.conf');
+const oldConf2 = path.join(process.cwd(), 'src', 'yt-dlp.conf');
+if (fs.existsSync(oldConf1)) fs.unlinkSync(oldConf1);
+if (fs.existsSync(oldConf2)) fs.unlinkSync(oldConf2);
+
 // Kiểm tra xem file cookies.txt có tồn tại hay không (Dành cho chạy Local)
 if (fs.existsSync(cookiePath)) {
     console.log("🍪 Đã tìm thấy file cookies.txt! Đang ép yt-dlp nhận Cookie...");
