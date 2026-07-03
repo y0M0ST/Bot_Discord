@@ -197,8 +197,8 @@ distube
         queue.textChannel.send('🎶 Đã phát hết danh sách nhạc, sẽ tự động rời đi sau 30 phút nữa nếu không có bài mới!');
 
         // Cài đặt đồng hồ đếm ngược 30 phút (30 * 60 * 1000 miligiây)
+        let to = 30; // 30 phút = 1800000 ms
         const timeout = setTimeout(() => {
-            let to = 30; // 30 phút = 1800000 ms
             distube.voices.leave(queue);
             queue.textChannel.send(`👋 Đã ${to} phút không có ai bật nhạc, tớ xin phép về nhà ngủ đây. Bye bye!`);
             leaveTimeouts.delete(queue.id);
