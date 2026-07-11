@@ -51,31 +51,7 @@ export default {
                         await interaction.reply({ content: '➡️ Đã tắt chế độ lặp lại.', ephemeral: true });
                     }
                     break;
-                case 'music_autoleave':
-                    queue.autoLeave = !queue.autoLeave; // Đảo ngược trạng thái
 
-                    // Cập nhật lại giao diện của các nút bấm
-                    const components = interaction.message.components.map(row => {
-                        return {
-                            type: 1, // ActionRow
-                            components: row.components.map(btn => {
-                                if (btn.customId === 'music_autoleave') {
-                                    return {
-                                        ...btn.data,
-                                        label: queue.autoLeave ? 'Tự Rời: BẬT' : 'Tự Rời: TẮT',
-                                        style: queue.autoLeave ? 3 : 2, // 3 = Success (Xanh lá), 2 = Secondary (Xám)
-                                    };
-                                }
-                                return btn.data;
-                            })
-                        };
-                    });
-
-                    // Cập nhật thẳng vào tin nhắn có nút bấm
-                    await interaction.update({ components });
-                    // Đồng thời gửi 1 thông báo nhỏ
-                    await interaction.followUp({ content: `✅ Đã ${queue.autoLeave ? 'BẬT' : 'TẮT'} chế độ tự động rời phòng (Online 24/7: ${queue.autoLeave ? 'Tắt' : 'Bật'})`, ephemeral: true });
-                    break;
                 case 'music_stop':
                     queue.stop();
                     await interaction.reply({ content: '⏹️ Đã tắt nhạc và rời phòng.', ephemeral: true });

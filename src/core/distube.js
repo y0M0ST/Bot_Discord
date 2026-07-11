@@ -57,7 +57,7 @@ const distube = new DisTube(client, {
     ]
 });
 
-const leaveTimeouts = new Map();
+
 
 function createProgressBar(currentTime, duration, length = 20) {
     // Check chống mù mắt, lỡ duration âm hoặc null luôn
@@ -113,11 +113,7 @@ distube
         // Tắt log debug cho đỡ đầy console
     })
     .on("playSong", async (queue, song) => {
-        // Nếu có bài hát mới phát, hủy lệnh đếm ngược 30 phút (nếu có)
-        if (leaveTimeouts.has(queue.id)) {
-            clearTimeout(leaveTimeouts.get(queue.id));
-            leaveTimeouts.delete(queue.id);
-        }
+
 
         // Xoá đồng hồ cập nhật tiến độ cũ (nếu có)
         if (queue.progressInterval) {
@@ -126,8 +122,7 @@ distube
 
         const embed = generateMusicEmbed(queue, song);
 
-        // Khởi tạo mặc định autoLeave là true nếu chưa có
-        if (queue.autoLeave === undefined) queue.autoLeave = true;
+
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -145,11 +140,7 @@ distube
             new ButtonBuilder()
                 .setCustomId('music_stop')
                 .setEmoji('⏹️')
-                .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-                .setCustomId('music_autoleave')
-                .setLabel(queue.autoLeave ? 'Tự Rời: BẬT' : 'Tự Rời: TẮT')
-                .setStyle(queue.autoLeave ? ButtonStyle.Success : ButtonStyle.Secondary)
+                .setStyle(ButtonStyle.Danger)
         );
 
         const msg = await queue.textChannel.send({ embeds: [embed], components: [row] });
@@ -189,23 +180,7 @@ distube
     .on("finish", (queue) => {
         if (queue.progressInterval) clearInterval(queue.progressInterval);
 
-        if (!queue.autoLeave) {
-            queue.textChannel.send('🎶 Đã phát hết danh sách nhạc. (Chế độ Online 24/7 đang BẬT, bot sẽ ở lại phòng chờ lệnh)');
-            return;
-        }
-
-        queue.textChannel.send('🎶 Đã phát hết danh sách nhạc, sẽ tự động rời đi sau 30 phút nữa nếu không có bài mới!');
-
-        // Cài đặt đồng hồ đếm ngược 30 phút (30 * 60 * 1000 miligiây)
-        let to = 30; // 30 phút = 1800000 ms
-        const timeout = setTimeout(() => {
-            distube.voices.leave(queue);
-            queue.textChannel.send(`👋 Đã ${to} phút không có ai bật nhạc, tớ xin phép về nhà ngủ đây. Bye bye!`);
-            leaveTimeouts.delete(queue.id);
-        }, to * 60 * 1000); // to * 60 * 1000 miligiây
-
-        // Lưu đồng hồ này lại để hủy nếu có bài mới được thêm vào
-        leaveTimeouts.set(queue.id, timeout);
+        queue.textChannel.send('🎶 Đã phát hết danh sách nhạc. (Chế độ Online 24/7 đang BẬT, bot sẽ ở lại phòng chờ lệnh)');
     })
     .on("error", (error, queue, song) => {
         if (queue && queue.progressInterval) clearInterval(queue.progressInterval);
