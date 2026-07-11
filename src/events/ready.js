@@ -6,27 +6,14 @@ export default {
     once: true,
     async execute(client) {
         console.log(`✅ Bot: ${client.user.tag} đã online!`);
-        Logger.status("🟢 ONLINE", `Bot: ${client.user.tag} đã khởi động thành công và sẵn sàng phục vụ!`, "Green");
+        Logger.status("🟢 ONLINE", `Bot: ${client.user.tag} đã sẵn sàng phục vụ Linh Đan!`, "Green");
 
-        // Cả một rổ status cute, bà có thể tự nghĩ thêm và thêm vào mảng này nha
-        const cuteStatuses = [
-            // { text: 'Linh Đan là số 1 💖', type: ActivityType.Playing },
-            // { text: 'giọng Linh Đan 🎧', type: ActivityType.Listening },
-            // { text: 'chờ Linh Đan rep tin nhắn 🥺', type: ActivityType.Watching },
-            { text: 'với Linh Đan 🎮', type: ActivityType.Playing }
-        ];
-
-        let i = 0;
-
-        // Cho bot tự động đổi status liên tục (hiện tại đang để 15 giây đổi 1 lần)
-        setInterval(() => {
-            const status = cuteStatuses[i % cuteStatuses.length];
-
-            client.user.setActivity(status.text, {
-                type: status.type
-            });
-
-            i++;
-        }, 3000); // 15000 mili-giây = 15 giây (bà muốn chậm hơn thì chỉnh lên 30000 nha)
+        // Gọi ĐÚNG 1 LẦN, Discord sẽ tự động làm phần đếm giờ còn lại!
+        client.user.setActivity('với Linh Đan 💖', {
+            type: ActivityType.Playing,
+            timestamps: {
+                start: Date.now() // Báo cho Discord biết thời điểm bắt đầu
+            }
+        });
     },
 };
